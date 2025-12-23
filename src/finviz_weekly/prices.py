@@ -131,7 +131,7 @@ def _fetch_yahoo_daily(ticker: str, cfg: PriceFetchConfig) -> pd.DataFrame:
         end=end,
         interval="1d",
         progress=False,
-        auto_adjust=cfg.auto_adjust,
+        auto_adjust=getattr(cfg, "auto_adjust", False),
         threads=False,  # we're already parallelising at a higher level
     )
     if data is None or data.empty:
