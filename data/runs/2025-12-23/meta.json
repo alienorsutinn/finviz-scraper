@@ -1,0 +1,8 @@
+{
+  "as_of": "2025-12-23",
+  "total_target": 500,
+  "already_checkpointed": 10,
+  "completed_this_run": 472,
+  "ok": 477,
+  "error": 5
+}

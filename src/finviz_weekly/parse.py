@@ -7,26 +7,36 @@ from typing import Optional, Tuple, Union
 
 import pandas as pd
 
-MISSING = {"", "-", None}
+# Finviz missing sentinels
+_MISSING_STRINGS = {"", "-", "N/A", "NA", "null", "None"}
 
 
-def parse_missing(value: Optional[str]) -> Optional[object]:
-    """Return pd.NA for missing sentinel values."""
-
-    if value in MISSING:
+def parse_missing(value: object) -> object:
+    """Return pd.NA for missing sentinel values (robust to whitespace / nbsp)."""
+    if value is None:
         return pd.NA
+    if isinstance(value, str):
+        # normalize whitespace (including non-breaking spaces)
+        v = value.replace("\xa0", " ").strip()
+        if v in _MISSING_STRINGS:
+            return pd.NA
+        return v
     return value
 
 
-def parse_percent(value: Optional[str]) -> Optional[float]:
+def parse_percent(value: Optional[str]) -> object:
     """Parse percentage strings like '7.25%' into decimals."""
-
-    if value in MISSING:
+    v = parse_missing(value)
+    if v is pd.NA:
+        return pd.NA
+    if not isinstance(v, str):
         return pd.NA
     try:
-        cleaned = value.strip().rstrip("%")
+        cleaned = v.rstrip("%").strip()
+        if cleaned == "":
+            return pd.NA
         return float(cleaned) / 100
-    except (ValueError, AttributeError):
+    except ValueError:
         return pd.NA
 
 
@@ -38,38 +48,50 @@ _MAGNITUDE = {
 }
 
 
-def parse_human_number(value: Optional[str]) -> Optional[Union[int, float]]:
+def parse_human_number(value: Optional[str]) -> object:
     """Parse human readable numbers like 147.01B into numeric values."""
-
-    if value in MISSING:
+    v = parse_missing(value)
+    if v is pd.NA:
         return pd.NA
+    if not isinstance(v, str):
+        return pd.NA
+
     try:
-        s = value.strip().replace(",", "")
+        s = v.replace(",", "").strip()
+        if s == "":
+            return pd.NA
+
         suffix = s[-1]
         if suffix in _MAGNITUDE:
             base = float(s[:-1]) * _MAGNITUDE[suffix]
         else:
             base = float(s)
-        if math.isfinite(base) and base.is_integer():
-            return int(base)
-        return base
-    except (ValueError, AttributeError):
+
+        if not math.isfinite(base):
+            return pd.NA
+        return int(base) if float(base).is_integer() else base
+    except ValueError:
+        return pd.NA
+    except IndexError:
+        # ultra-defensive: if s became empty somehow
         return pd.NA
 
 
-def parse_range(value: Optional[str]) -> Optional[Tuple[Optional[float], Optional[float]]]:
+def parse_range(value: Optional[str]) -> object:
     """Parse ranges like '745.55 - 1084.22'."""
-
-    if value in MISSING:
+    v = parse_missing(value)
+    if v is pd.NA:
+        return pd.NA
+    if not isinstance(v, str):
         return pd.NA
     try:
-        parts = [p.strip() for p in value.split("-")]
+        parts = [p.strip() for p in v.split("-")]
         if len(parts) != 2:
             return pd.NA
-        start = float(parts[0]) if parts[0] else pd.NA
-        end = float(parts[1]) if parts[1] else pd.NA
-        return (start, end)
-    except (ValueError, AttributeError):
+        if parts[0] == "" or parts[1] == "":
+            return pd.NA
+        return (float(parts[0]), float(parts[1]))
+    except ValueError:
         return pd.NA
 
 
@@ -78,5 +100,6 @@ TICKER_RE = re.compile(r"^[A-Z]{1,5}(\.[A-Z]{1,2})?$")
 
 def is_valid_ticker(text: str) -> bool:
     """Validate ticker text similar to notebook logic."""
-
-    return bool(TICKER_RE.match(text.strip()))
+    if not isinstance(text, str):
+        return False
+    return bool(TICKER_RE.match(text.strip().upper()))
