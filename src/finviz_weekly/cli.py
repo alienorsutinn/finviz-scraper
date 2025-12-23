@@ -9,19 +9,30 @@ from typing import List
 from .config import env_config
 from .http import create_session
 from .pipeline import execute
-
+from .screen import run_screening
+from .learn import train_weights
 
 LOGGER = logging.getLogger(__name__)
 
 
 def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Finviz weekly scraper")
-    parser.add_argument("run", nargs="?")
-    parser.add_argument("--mode", choices=["universe", "tickers"], required=True)
+
+    parser.add_argument(
+        "command",
+        nargs="?",
+        default="run",
+        choices=["run", "screen", "train"],
+        help="Command to execute (default: run).",
+    )
+
+    # run args
+    parser.add_argument("--mode", choices=["universe", "tickers"], required=False)
     parser.add_argument("--tickers", help="Comma separated list of tickers")
     parser.add_argument("--tickers-file", help="Path to file with tickers")
     parser.add_argument("--industry-limit", type=int)
     parser.add_argument("--ticker-limit", type=int)
+
     parser.add_argument("--rate-per-sec", type=float, default=0.5)
     parser.add_argument("--page-sleep-min", type=float, default=0.8)
     parser.add_argument("--page-sleep-max", type=float, default=1.8)
@@ -31,11 +42,36 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
         "--resume",
         action=argparse.BooleanOptionalAction,
         default=True,
-        help="Resume from today\'s partial checkpoint (default: enabled).",
+        help="Resume from today's partial checkpoint (default: enabled).",
     )
     parser.add_argument("--out", default="data")
     parser.add_argument("--formats", default="parquet,csv")
     parser.add_argument("--log-level", default="INFO")
+
+    # latest snapshot options (run)
+    parser.add_argument(
+        "--latest-only-ok",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Only write ok rows to data/latest (default: enabled).",
+    )
+    parser.add_argument(
+        "--latest-include-as-of-date",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Include as_of_date in data/latest (default: enabled).",
+    )
+
+    # screening args (screen)
+    parser.add_argument("--top", type=int, default=50, help="Top-N tickers per screen.")
+    parser.add_argument("--min-market-cap", type=float, default=300_000_000)
+    parser.add_argument("--min-price", type=float, default=1.0)
+    parser.add_argument("--candidates-max", type=int, default=100)
+
+    # training args (train)
+    parser.add_argument("--min-rows-per-group", type=int, default=250)
+    parser.add_argument("--group-col", type=str, default="sector")
+
     return parser.parse_args(argv)
 
 
@@ -46,15 +82,38 @@ def _load_tickers(args: argparse.Namespace) -> list[str]:
     if args.tickers_file:
         path = Path(args.tickers_file)
         if path.exists():
-            contents = path.read_text().splitlines()
-            tickers.extend([c.strip().upper() for c in contents if c.strip()])
+            tickers.extend([t.strip().upper() for t in path.read_text().splitlines() if t.strip()])
     return tickers
 
 
 def main(argv: List[str] | None = None) -> None:
     args = parse_args(argv)
     logging.basicConfig(level=getattr(logging, args.log_level.upper(), logging.INFO))
+
+    if args.command == "screen":
+        run_screening(
+            out_dir=args.out,
+            top_n=int(args.top),
+            min_market_cap=float(args.min_market_cap),
+            min_price=float(args.min_price),
+            candidates_max=int(args.candidates_max),
+        )
+        return
+
+    if args.command == "train":
+        train_weights(
+            out_dir=args.out,
+            min_rows_per_group=int(args.min_rows_per_group),
+            group_col=str(args.group_col),
+        )
+        return
+
+    # run
+    if not args.mode:
+        raise SystemExit("--mode is required for the 'run' command")
+
     tickers = _load_tickers(args)
+
     config = env_config(
         mode=args.mode,
         tickers=tickers,
@@ -69,7 +128,10 @@ def main(argv: List[str] | None = None) -> None:
         resume=args.resume,
         concurrency=args.concurrency,
         checkpoint_every=args.checkpoint_every,
+        latest_only_ok=bool(args.latest_only_ok),
+        latest_include_as_of_date=bool(args.latest_include_as_of_date),
     )
+
     session = create_session(config.http)
     execute(session, config)
 

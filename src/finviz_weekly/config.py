@@ -9,7 +9,6 @@ from typing import Iterable, Optional
 @dataclass
 class RateLimits:
     """Rate limit configuration."""
-
     rate_per_sec: float = 0.5
     page_sleep_min: float = 0.8
     page_sleep_max: float = 1.8
@@ -20,7 +19,6 @@ class RateLimits:
 @dataclass
 class RunConfig:
     """Runtime configuration."""
-
     mode: str
     tickers: list[str]
     industry_limit: Optional[int]
@@ -31,11 +29,14 @@ class RunConfig:
     rate_limits: RateLimits
     resume: bool = True
 
+    # Latest snapshot options
+    latest_only_ok: bool = True
+    latest_include_as_of_date: bool = True
+
 
 @dataclass
 class HttpConfig:
     """HTTP configuration and proxy support."""
-
     proxy: Optional[str]
     timeout_connect: int = 5
     timeout_read: int = 20
@@ -44,23 +45,17 @@ class HttpConfig:
 
 @dataclass
 class AppConfig:
-    """Application configuration assembled from environment variables."""
-
+    """Application configuration."""
     http: HttpConfig
     run: RunConfig
 
 
+# Used by http layer (safe defaults even if not referenced)
 USER_AGENTS: list[str] = [
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
-    "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:126.0) Gecko/20100101 Firefox/126.0",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.6261.129 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
 ]
 
 
@@ -78,9 +73,10 @@ def env_config(
     resume: bool = True,
     concurrency: int = 6,
     checkpoint_every: int = 10,
+    latest_only_ok: bool = True,
+    latest_include_as_of_date: bool = True,
 ) -> AppConfig:
     """Construct configuration from provided values and environment variables."""
-
     proxy = os.getenv("FINVIZ_PROXY")
     http = HttpConfig(proxy=proxy)
 
@@ -102,6 +98,8 @@ def env_config(
         log_level=log_level,
         rate_limits=rate_limits,
         resume=resume,
+        latest_only_ok=latest_only_ok,
+        latest_include_as_of_date=latest_include_as_of_date,
     )
 
     return AppConfig(http=http, run=run)

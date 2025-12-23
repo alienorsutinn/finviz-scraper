@@ -1,0 +1,524 @@
+diff --git a/src/finviz_weekly/__init__.py b/src/finviz_weekly/__init__.py
+index 29f5f5a..cc9ad07 100644
+--- a/src/finviz_weekly/__init__.py
++++ b/src/finviz_weekly/__init__.py
+@@ -7,4 +7,5 @@ __all__ = [
+     "parse",
+     "pipeline",
+     "storage",
++    "screen",
+ ]
+diff --git a/src/finviz_weekly/cli.py b/src/finviz_weekly/cli.py
+index 5f4c6b0..c58f1a3 100644
+--- a/src/finviz_weekly/cli.py
++++ b/src/finviz_weekly/cli.py
+@@ -9,6 +9,7 @@ import logging
+ from pathlib import Path
+ from typing import List
+
+ from .config import env_config
+ from .http import create_session
+ from .pipeline import execute
++from .screen import run_screening
+
+
+ LOGGER = logging.getLogger(__name__)
+
+
+ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
+     parser = argparse.ArgumentParser(description="Finviz weekly scraper")
+-    parser.add_argument("run", nargs="?")
+-    parser.add_argument("--mode", choices=["universe", "tickers"], required=True)
++    parser.add_argument(
++        "command",
++        nargs="?",
++        default="run",
++        choices=["run", "screen"],
++        help="Command to execute (default: run).",
++    )
++    parser.add_argument("--mode", choices=["universe", "tickers"], required=False)
+     parser.add_argument("--tickers", help="Comma separated list of tickers")
+     parser.add_argument("--tickers-file", help="Path to file with tickers")
+     parser.add_argument("--industry-limit", type=int)
+     parser.add_argument("--ticker-limit", type=int)
+     parser.add_argument("--rate-per-sec", type=float, default=0.5)
+@@ -23,6 +24,41 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
+     parser.add_argument("--out", default="data")
+     parser.add_argument("--formats", default="parquet,csv")
+     parser.add_argument("--log-level", default="INFO")
++
++    # Latest snapshot options (applies to `run`)
++    parser.add_argument(
++        "--latest-only-ok",
++        action=argparse.BooleanOptionalAction,
++        default=True,
++        help="Only write ok rows to data/latest (default: enabled).",
++    )
++    parser.add_argument(
++        "--latest-include-as-of-date",
++        action=argparse.BooleanOptionalAction,
++        default=True,
++        help="Include as_of_date in data/latest (default: enabled).",
++    )
++
++    # Screening options (applies to `screen`)
++    parser.add_argument("--top", type=int, default=50, help="Top-N tickers per screen.")
++    parser.add_argument(
++        "--min-market-cap",
++        type=float,
++        default=300_000_000,
++        help="Minimum market cap in USD (default: 300M).",
++    )
++    parser.add_argument(
++        "--min-price",
++        type=float,
++        default=1.0,
++        help="Minimum price filter (default: $1).",
++    )
++    parser.add_argument(
++        "--candidates-max",
++        type=int,
++        default=100,
++        help="Max tickers to write into candidates.txt (union of screens).",
++    )
+     return parser.parse_args(argv)
+
+
+ def _load_tickers(args: argparse.Namespace) -> list[str]:
+@@ -41,10 +77,27 @@ def _load_tickers(args: argparse.Namespace) -> list[str]:
+     return tickers
+
+
+ def main(argv: List[str] | None = None) -> None:
+     args = parse_args(argv)
+     logging.basicConfig(level=getattr(logging, args.log_level.upper(), logging.INFO))
++
++    if args.command == "screen":
++        run_screening(
++            out_dir=args.out,
++            top_n=int(args.top),
++            min_market_cap=float(args.min_market_cap),
++            min_price=float(args.min_price),
++            candidates_max=int(args.candidates_max),
++        )
++        return
++
++    if not args.mode:
++        raise SystemExit("--mode is required for the 'run' command")
+
+     tickers = _load_tickers(args)
+     config = env_config(
+         mode=args.mode,
+         tickers=tickers,
+@@ -57,6 +110,8 @@ def main(argv: List[str] | None = None) -> None:
+         page_sleep_max=args.page_sleep_max,
+         resume=args.resume,
+         concurrency=args.concurrency,
+         checkpoint_every=args.checkpoint_every,
++        latest_only_ok=bool(args.latest_only_ok),
++        latest_include_as_of_date=bool(args.latest_include_as_of_date),
+     )
+     session = create_session(config.http)
+     execute(session, config)
+diff --git a/src/finviz_weekly/config.py b/src/finviz_weekly/config.py
+index 2a0d5c8..c66724f 100644
+--- a/src/finviz_weekly/config.py
++++ b/src/finviz_weekly/config.py
+@@ -28,6 +28,9 @@ class RunConfig:
+     formats: Iterable[str]
+     log_level: str
+     rate_limits: RateLimits
+     resume: bool = True
++    # Latest snapshot options
++    latest_only_ok: bool = True
++    latest_include_as_of_date: bool = True
+
+
+ @dataclass
+ class HttpConfig:
+@@ -67,6 +70,8 @@ def env_config(
+     resume: bool = True,
+     concurrency: int = 6,
+     checkpoint_every: int = 10,
++    latest_only_ok: bool = True,
++    latest_include_as_of_date: bool = True,
+ ) -> AppConfig:
+@@ -94,6 +99,8 @@ def env_config(
+         log_level=log_level,
+         rate_limits=rate_limits,
+         resume=resume,
++        latest_only_ok=latest_only_ok,
++        latest_include_as_of_date=latest_include_as_of_date,
+     )
+
+     return AppConfig(http=http, run=run)
+diff --git a/src/finviz_weekly/pipeline.py b/src/finviz_weekly/pipeline.py
+index 8a8e0df..0a62e52 100644
+--- a/src/finviz_weekly/pipeline.py
++++ b/src/finviz_weekly/pipeline.py
+@@ -54,25 +54,36 @@ def build_universe(session, config: AppConfig) -> List[str]:
+     if config.run.industry_limit:
+         industries = industries[: config.run.industry_limit]
+
+-    tickers: List[str] = []
++    # Global dedupe: tickers can appear under multiple Finviz buckets
++    tickers: List[str] = []
++    seen: set[str] = set()
++    target = config.run.ticker_limit
+     for code in industries:
+-        tickers.extend(
+-            get_tickers_for_industry(
+-                session,
+-                config.http,
+-                code,
+-                ticker_limit=config.run.ticker_limit,
+-                page_sleep_range=(
+-                    config.run.rate_limits.page_sleep_min,
+-                    config.run.rate_limits.page_sleep_max,
+-                ),
+-            )
+-        )
+-        if config.run.ticker_limit and len(tickers) >= config.run.ticker_limit:
+-            tickers = tickers[: config.run.ticker_limit]
+-            break
++        page_tickers = get_tickers_for_industry(
++            session,
++            config.http,
++            code,
++            ticker_limit=target,
++            page_sleep_range=(
++                config.run.rate_limits.page_sleep_min,
++                config.run.rate_limits.page_sleep_max,
++            ),
++        )
++        for t in page_tickers:
++            t = str(t).strip().upper()
++            if not t or t in seen:
++                continue
++            tickers.append(t)
++            seen.add(t)
++            if target and len(tickers) >= target:
++                break
++        if target and len(tickers) >= target:
++            break
+
+-    LOGGER.info("Universe size: %d tickers", len(tickers))
++    LOGGER.info("Universe size: %d tickers (deduped)", len(tickers))
+     return tickers
+@@ -131,6 +142,9 @@ async def run_pipeline(session, config: AppConfig, run_dir: Path, as_of: date) ->
+     else:
+         tickers = list(config.run.tickers)
+
++    # Ensure deterministic ordering + no duplicates
++    tickers = list(dict.fromkeys([str(t).strip().upper() for t in tickers if str(t).strip()]))
++
+     if config.run.ticker_limit:
+         tickers = tickers[: config.run.ticker_limit]
+@@ -222,7 +236,13 @@ def execute(session, config: AppConfig) -> pd.DataFrame:
+     # final outputs
+     save_final_outputs(df, run_dir, config.run.formats)
+-    update_latest(df, config.run.out_dir)
++    update_latest(
++        df,
++        config.run.out_dir,
++        as_of,
++        only_ok=config.run.latest_only_ok,
++        include_as_of_date=config.run.latest_include_as_of_date,
++    )
+     append_history(df, config.run.out_dir, as_of)
+
+     LOGGER.info("Run completed, data in %s", run_dir)
+diff --git a/src/finviz_weekly/storage.py b/src/finviz_weekly/storage.py
+index 9f5e49d..f9885a2 100644
+--- a/src/finviz_weekly/storage.py
++++ b/src/finviz_weekly/storage.py
+@@ -126,10 +126,32 @@ def save_final_outputs(df: pd.DataFrame, run_dir: Path, formats: Iterable[str]) -
+         _write_df(df, run_dir / FINAL_CSV)
+
+
+-def update_latest(df: pd.DataFrame, out_root: str) -> Path:
++def update_latest(
++    df: pd.DataFrame,
++    out_root: str,
++    as_of: date,
++    *,
++    only_ok: bool = True,
++    include_as_of_date: bool = True,
++) -> Path:
++    \"\"\"Write the latest snapshot.
++
++    Notes:
++      - `only_ok=True` keeps downstream scoring clean (no errored rows).
++      - `include_as_of_date=True` keeps schema aligned with history.
++    \"\"\"
+     latest_dir = ensure_dir(Path(out_root) / LATEST_DIR)
+     path = latest_dir / FINAL_PARQUET
+-    df.to_parquet(path, index=False, compression="snappy")
++
++    out_df = df.copy()
++    if only_ok and "__status" in out_df.columns:
++        out_df = out_df[out_df["__status"] == "ok"].copy()
++
++    if include_as_of_date:
++        out_df["as_of_date"] = as_of.isoformat()
++
++    out_df.to_parquet(path, index=False, compression="snappy")
+     LOGGER.info("Updated latest snapshot at %s", path)
+     return path
+diff --git a/src/finviz_weekly/screen.py b/src/finviz_weekly/screen.py
+new file mode 100644
+index 0000000..3bb7b9f
+--- /dev/null
++++ b/src/finviz_weekly/screen.py
+@@ -0,0 +1,265 @@
++\"\"\"Screening and scoring utilities.
++
++Turns the wide Finviz fundamentals snapshot into ranked shortlists.
++\"\"\"
++from __future__ import annotations
++
++import logging
++import re
++from dataclasses import dataclass
++from datetime import date
++from pathlib import Path
++from typing import Dict, List, Optional, Tuple
++
++import pandas as pd
++
++from .storage import LATEST_DIR, RUNS_DIR, ensure_dir
++
++LOGGER = logging.getLogger(__name__)
++
++
++def _canon(name: str) -> str:
++    s = str(name).lower().strip()
++    s = re.sub(r\"[^a-z0-9]+\", \"_\", s)
++    s = re.sub(r\"_+\", \"_\", s).strip(\"_\")
++    return s
++
++
++def _build_colmap(df: pd.DataFrame) -> Dict[str, str]:
++    out: Dict[str, str] = {}
++    for c in df.columns:
++        out.setdefault(_canon(c), c)
++    return out
++
++
++def _get(df: pd.DataFrame, colmap: Dict[str, str], canonical: str) -> Optional[pd.Series]:
++    real = colmap.get(canonical)
++    return df[real] if real else None
++
++
++def _to_numeric(s: pd.Series) -> pd.Series:
++    def _coerce(x):
++        if isinstance(x, tuple):
++            return None
++        return x
++    return pd.to_numeric(s.map(_coerce), errors=\"coerce\")
++
++
++def _winsorize(s: pd.Series, low_q: float = 0.01, high_q: float = 0.99) -> pd.Series:
++    s = s.copy()
++    non_na = s.dropna()
++    if len(non_na) < 30:
++        return s
++    lo = non_na.quantile(low_q)
++    hi = non_na.quantile(high_q)
++    return s.clip(lower=lo, upper=hi)
++
++
++def _pct_score(s: pd.Series, *, higher_better: bool = True) -> pd.Series:
++    x = _winsorize(_to_numeric(s))
++    r = x.rank(pct=True, method=\"average\")
++    if not higher_better:
++        r = 1.0 - r
++    return r.fillna(0.0)
++
++
++def _mean_or_zero(parts: List[pd.Series], *, index: pd.Index) -> pd.Series:
++    if not parts:
++        return pd.Series(0.0, index=index)
++    tmp = pd.concat(parts, axis=1)
++    return tmp.mean(axis=1).reindex(index).fillna(0.0)
++
++
++@dataclass(frozen=True)
++class ScreenResult:
++    name: str
++    ranked: pd.DataFrame
++
++
++def score_snapshot(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, ScreenResult]]:
++    if df.empty:
++        return df, {}
++
++    colmap = _build_colmap(df)
++
++    def col(name: str) -> Optional[pd.Series]:
++        return _get(df, colmap, name)
++
++    # Value (lower is better)
++    value_parts: List[pd.Series] = []
++    for nm in [\"forward_p_e\", \"p_e\", \"p_s\", \"p_b\", \"p_fcf\", \"ev_ebitda\"]:
++        s = col(nm)
++        if s is not None:
++            value_parts.append(_pct_score(s, higher_better=False))
++    value_score = _mean_or_zero(value_parts, index=df.index)
++
++    # Quality (higher is better)
++    quality_parts: List[pd.Series] = []
++    for nm in [\"roe\", \"roa\", \"roi\", \"roic\", \"gross_margin\", \"oper_margin\", \"profit_margin\"]:
++        s = col(nm)
++        if s is not None:
++            quality_parts.append(_pct_score(s, higher_better=True))
++    quality_score = _mean_or_zero(quality_parts, index=df.index)
++
++    # Risk (mixed)
++    risk_parts: List[pd.Series] = []
++    for nm in [\"debt_eq\", \"lt_debt_eq\", \"beta\", \"volatility_w\", \"volatility_m\"]:
++        s = col(nm)
++        if s is not None:
++            risk_parts.append(_pct_score(s, higher_better=False))
++    for nm in [\"current_ratio\", \"quick_ratio\", \"market_cap\"]:
++        s = col(nm)
++        if s is not None:
++            risk_parts.append(_pct_score(s, higher_better=True))
++    risk_score = _mean_or_zero(risk_parts, index=df.index)
++
++    # Growth proxies
++    growth_parts: List[pd.Series] = []
++    for nm in [\"eps_next_5y\", \"sales_past_5y\", \"eps_this_y\", \"eps_next_y\", \"sales_q_q\", \"eps_q_q\"]:
++        s = col(nm)
++        if s is not None:
++            growth_parts.append(_pct_score(s, higher_better=True))
++    growth_score = _mean_or_zero(growth_parts, index=df.index)
++
++    # Momentum (optional)
++    momentum_parts: List[pd.Series] = []
++    for nm in [\"perf_month\", \"perf_quarter\", \"perf_year\", \"perf_ytd\", \"sma50\", \"sma200\"]:
++        s = col(nm)
++        if s is not None:
++            momentum_parts.append(_pct_score(s, higher_better=True))
++    momentum_score = _mean_or_zero(momentum_parts, index=df.index)
++
++    # Oversold (lower is better)
++    oversold_parts: List[pd.Series] = []
++    for nm in [\"rsi_14\", \"perf_month\", \"perf_week\", \"52w_high\", \"52w_low\"]:
++        s = col(nm)
++        if s is not None:
++            oversold_parts.append(_pct_score(s, higher_better=False))
++    oversold_score = _mean_or_zero(oversold_parts, index=df.index)
++
++    out = df.copy()
++    out[\"score_value\"] = value_score
++    out[\"score_quality\"] = quality_score
++    out[\"score_risk\"] = risk_score
++    out[\"score_growth\"] = growth_score
++    out[\"score_momentum\"] = momentum_score
++    out[\"score_oversold\"] = oversold_score
++
++    # Composite screens
++    out[\"score_quality_value\"] = 0.45 * out[\"score_quality\"] + 0.45 * out[\"score_value\"] + 0.10 * out[\"score_risk\"]
++    out[\"score_oversold_quality\"] = 0.45 * out[\"score_quality\"] + 0.35 * out[\"score_oversold\"] + 0.20 * out[\"score_risk\"]
++    out[\"score_compounders\"] = 0.50 * out[\"score_quality\"] + 0.25 * out[\"score_growth\"] + 0.15 * out[\"score_value\"] + 0.10 * out[\"score_momentum\"]
++
++    screens: Dict[str, ScreenResult] = {}
++    for name, score_col in [
++        (\"quality_value\", \"score_quality_value\"),
++        (\"oversold_quality\", \"score_oversold_quality\"),
++        (\"compounders\", \"score_compounders\"),
++    ]:
++        ranked = out.sort_values(score_col, ascending=False, kind=\"mergesort\").reset_index(drop=True)
++        ranked[\"rank\"] = ranked.index + 1
++        screens[name] = ScreenResult(name=name, ranked=ranked)
++
++    return out, screens
++
++
++def _infer_as_of(df: pd.DataFrame) -> date:
++    if \"as_of_date\" in df.columns:
++        try:
++            return date.fromisoformat(str(df[\"as_of_date\"].iloc[0]))
++        except Exception:
++            pass
++    return date.today()
++
++
++def _read_latest(out_dir: str) -> pd.DataFrame:
++    path = Path(out_dir) / LATEST_DIR / \"finviz_fundamentals.parquet\"
++    if not path.exists():
++        raise FileNotFoundError(f\"Latest snapshot not found at {path}. Run the scraper first.\")
++    return pd.read_parquet(path)
++
++
++def _apply_basic_filters(df: pd.DataFrame, *, min_market_cap: float, min_price: float) -> pd.DataFrame:
++    if df.empty:
++        return df
++    colmap = _build_colmap(df)
++    out = df.copy()
++
++    if \"__status\" in out.columns:
++        out = out[out[\"__status\"] == \"ok\"].copy()
++
++    mc = _get(out, colmap, \"market_cap\")
++    if mc is not None:
++        out = out[_to_numeric(mc) >= float(min_market_cap)].copy()
++
++    price = _get(out, colmap, \"price\")
++    if price is not None:
++        out = out[_to_numeric(price) >= float(min_price)].copy()
++    return out
++
++
++def run_screening(
++    *,
++    out_dir: str = \"data\",
++    top_n: int = 50,
++    min_market_cap: float = 300_000_000,
++    min_price: float = 1.0,
++    candidates_max: int = 100,
++) -> None:
++    latest = _read_latest(out_dir)
++    latest = _apply_basic_filters(latest, min_market_cap=min_market_cap, min_price=min_price)
++    if latest.empty:
++        LOGGER.warning(\"No rows after filters; nothing to screen.\")
++        return
++
++    as_of = _infer_as_of(latest)
++    run_dir = ensure_dir(Path(out_dir) / RUNS_DIR / as_of.isoformat())
++    latest_dir = ensure_dir(Path(out_dir) / LATEST_DIR)
++
++    scored, screens = score_snapshot(latest)
++
++    scored.to_parquet(run_dir / \"finviz_scored.parquet\", index=False, compression=\"snappy\")
++    scored.to_parquet(latest_dir / \"finviz_scored.parquet\", index=False, compression=\"snappy\")
++
++    unions: List[str] = []
++
++    for key, res in screens.items():
++        score_col = {
++            \"quality_value\": \"score_quality_value\",
++            \"oversold_quality\": \"score_oversold_quality\",
++            \"compounders\": \"score_compounders\",
++        }[key]
++
++        ranked = res.ranked
++        top = ranked.head(int(top_n)).copy()
++
++        keep = [c for c in [\"ticker\", \"company\", \"sector\", \"industry\", \"market_cap\", \"price\",
++                            \"score_value\", \"score_quality\", \"score_risk\", score_col, \"rank\"] if c in top.columns]
++        top_view = top[keep] if keep else top
++
++        csv_name = f\"top{int(top_n)}_{key}.csv\"
++        top_view.to_csv(run_dir / csv_name, index=False)
++        top_view.to_csv(latest_dir / csv_name, index=False)
++
++        if \"ticker\" in top.columns:
++            unions.extend([str(t).strip().upper() for t in top[\"ticker\"].tolist() if str(t).strip()])
++
++    candidates = list(dict.fromkeys(unions))[: int(candidates_max)]
++    (run_dir / \"candidates.txt\").write_text(\"\\n\".join(candidates) + (\"\\n\" if candidates else \"\"))
++    (latest_dir / \"candidates.txt\").write_text(\"\\n\".join(candidates) + (\"\\n\" if candidates else \"\"))
++
++    LOGGER.info(\"Screening done for %s. Outputs in %s and %s\", as_of.isoformat(), run_dir, latest_dir)

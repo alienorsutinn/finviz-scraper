@@ -72,6 +72,12 @@ def build_universe(session, config: AppConfig) -> List[str]:
             tickers = tickers[: config.run.ticker_limit]
             break
 
+    # Global dedupe (tickers can appear in multiple Finviz buckets)
+
+
+    tickers = list(dict.fromkeys([str(t).strip().upper() for t in tickers if str(t).strip()]))
+
+
     LOGGER.info("Universe size: %d tickers", len(tickers))
     return tickers
 
@@ -222,7 +228,7 @@ def execute(session, config: AppConfig) -> pd.DataFrame:
 
     # final outputs
     save_final_outputs(df, run_dir, config.run.formats)
-    update_latest(df, config.run.out_dir)
+    update_latest(df, config.run.out_dir, as_of, only_ok=config.run.latest_only_ok, include_as_of_date=config.run.latest_include_as_of_date)
     append_history(df, config.run.out_dir, as_of)
 
     LOGGER.info("Run completed, data in %s", run_dir)

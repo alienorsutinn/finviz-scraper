@@ -1,0 +1,27 @@
+{
+  "mode": "fallback",
+  "reason": "insufficient history for forward-return learning",
+  "features": [
+    "score_value",
+    "score_quality",
+    "score_risk",
+    "score_growth",
+    "score_momentum",
+    "score_oversold"
+  ],
+  "global": {
+    "weights": {
+      "score_quality": 0.3,
+      "score_value": 0.3,
+      "score_risk": 0.2,
+      "score_growth": 0.1,
+      "score_oversold": 0.1,
+      "score_momentum": 0.0
+    },
+    "ic": 0.0
+  },
+  "group_col": "sector",
+  "groups": {},
+  "n_unique_dates": 1,
+  "n_forward_rows": 0
+}

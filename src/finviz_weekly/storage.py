@@ -126,14 +126,33 @@ def save_final_outputs(df: pd.DataFrame, run_dir: Path, formats: Iterable[str]) 
         _write_df(df, run_dir / FINAL_CSV)
 
 
-def update_latest(df: pd.DataFrame, out_root: str) -> Path:
+def update_latest(
+    df: pd.DataFrame,
+    out_root: str,
+    as_of: date,
+    *,
+    only_ok: bool = True,
+    include_as_of_date: bool = True,
+) -> Path:
+    """Write the latest snapshot.
+
+    Notes:
+      - `only_ok=True` keeps downstream scoring clean (no errored rows).
+      - `include_as_of_date=True` keeps schema aligned with history.
+    """
     latest_dir = ensure_dir(Path(out_root) / LATEST_DIR)
     path = latest_dir / FINAL_PARQUET
-    df.to_parquet(path, index=False, compression="snappy")
+
+    out_df = df.copy()
+    if only_ok and "__status" in out_df.columns:
+        out_df = out_df[out_df["__status"] == "ok"].copy()
+
+    if include_as_of_date:
+        out_df["as_of_date"] = as_of.isoformat()
+
+    out_df.to_parquet(path, index=False, compression="snappy")
     LOGGER.info("Updated latest snapshot at %s", path)
     return path
-
-
 def append_history(df: pd.DataFrame, out_root: str, as_of: date) -> Path:
     history_dir = ensure_dir(Path(out_root) / HISTORY_DIR)
     history_path = history_dir / "finviz_fundamentals_history.parquet"
