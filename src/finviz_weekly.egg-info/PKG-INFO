@@ -10,6 +10,7 @@ Requires-Dist: beautifulsoup4>=4.12
 Requires-Dist: pandas>=2.1
 Requires-Dist: pyarrow>=14.0
 Requires-Dist: finvizfinance>=1.2.0
+Requires-Dist: yfinance>=0.2.0
 Provides-Extra: dev
 Requires-Dist: pytest>=7.4; extra == "dev"
 

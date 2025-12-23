@@ -6,8 +6,12 @@ src/finviz_weekly/cli.py
 src/finviz_weekly/config.py
 src/finviz_weekly/fundamentals.py
 src/finviz_weekly/http.py
+src/finviz_weekly/learn.py
 src/finviz_weekly/parse.py
 src/finviz_weekly/pipeline.py
+src/finviz_weekly/prices.py
+src/finviz_weekly/report.py
+src/finviz_weekly/screen.py
 src/finviz_weekly/screener.py
 src/finviz_weekly/storage.py
 src/finviz_weekly.egg-info/PKG-INFO

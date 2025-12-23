@@ -3,6 +3,7 @@ beautifulsoup4>=4.12
 pandas>=2.1
 pyarrow>=14.0
 finvizfinance>=1.2.0
+yfinance>=0.2.0
 
 [dev]
 pytest>=7.4
