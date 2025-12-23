@@ -25,6 +25,14 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--rate-per-sec", type=float, default=0.5)
     parser.add_argument("--page-sleep-min", type=float, default=0.8)
     parser.add_argument("--page-sleep-max", type=float, default=1.8)
+    parser.add_argument("--concurrency", type=int, default=6)
+    parser.add_argument("--checkpoint-every", type=int, default=10)
+    parser.add_argument(
+        "--resume",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Resume from today\'s partial checkpoint (default: enabled).",
+    )
     parser.add_argument("--out", default="data")
     parser.add_argument("--formats", default="parquet,csv")
     parser.add_argument("--log-level", default="INFO")
@@ -58,6 +66,9 @@ def main(argv: List[str] | None = None) -> None:
         rate_per_sec=args.rate_per_sec,
         page_sleep_min=args.page_sleep_min,
         page_sleep_max=args.page_sleep_max,
+        resume=args.resume,
+        concurrency=args.concurrency,
+        checkpoint_every=args.checkpoint_every,
     )
     session = create_session(config.http)
     execute(session, config)

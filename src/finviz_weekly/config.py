@@ -13,6 +13,8 @@ class RateLimits:
     rate_per_sec: float = 0.5
     page_sleep_min: float = 0.8
     page_sleep_max: float = 1.8
+    concurrency: int = 6
+    checkpoint_every: int = 10
 
 
 @dataclass
@@ -27,6 +29,7 @@ class RunConfig:
     formats: Iterable[str]
     log_level: str
     rate_limits: RateLimits
+    resume: bool = True
 
 
 @dataclass
@@ -72,14 +75,23 @@ def env_config(
     rate_per_sec: float = 0.5,
     page_sleep_min: float = 0.8,
     page_sleep_max: float = 1.8,
+    resume: bool = True,
+    concurrency: int = 6,
+    checkpoint_every: int = 10,
 ) -> AppConfig:
     """Construct configuration from provided values and environment variables."""
 
     proxy = os.getenv("FINVIZ_PROXY")
     http = HttpConfig(proxy=proxy)
+
     rate_limits = RateLimits(
-        rate_per_sec=rate_per_sec, page_sleep_min=page_sleep_min, page_sleep_max=page_sleep_max
+        rate_per_sec=rate_per_sec,
+        page_sleep_min=page_sleep_min,
+        page_sleep_max=page_sleep_max,
+        concurrency=concurrency,
+        checkpoint_every=checkpoint_every,
     )
+
     run = RunConfig(
         mode=mode,
         tickers=tickers or [],
@@ -89,5 +101,7 @@ def env_config(
         formats=formats or ["parquet", "csv"],
         log_level=log_level,
         rate_limits=rate_limits,
+        resume=resume,
     )
+
     return AppConfig(http=http, run=run)
