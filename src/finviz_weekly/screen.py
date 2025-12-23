@@ -19,6 +19,8 @@ from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 
+from .valuation import add_multiples_valuation
+
 from .report import write_report
 
 LOGGER = logging.getLogger(__name__)
@@ -170,12 +172,14 @@ def score_snapshot(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, ScreenResu
     if div_col:
         div_score = _pct_score(out[div_col], higher_better=True).fillna(0.0)
         out["score_shareholder_yield"] = 0.55 * div_score + 0.25 * out["score_value"] + 0.20 * out["score_risk"]
-
     # “short squeeze / crowded” only if short float exists
     sf_col = _find_col(colmap, ["short_float", "short_float_%", "shortfloat", "short_interest"])
     if sf_col:
         sf_score = _pct_score(out[sf_col], higher_better=True).fillna(0.0)
         out["score_short_squeeze"] = 0.40 * sf_score + 0.30 * out["score_oversold"] + 0.30 * out["score_momentum"]
+
+    # Multiples-based valuation + WFV/zones (works even with only 1 snapshot date)
+    out = add_multiples_valuation(out, colmap=colmap)
 
     # --- screens dict ---
     screens: Dict[str, ScreenResult] = {}
@@ -344,7 +348,15 @@ def run_screening(
 
     def export_list(name: str, df: pd.DataFrame, score_col: str):
         top = _top(df, score_col, top_n)
-        keep = [c for c in ["ticker","company","sector","industry","asset_type","market_cap","price",score_col] if c in top.columns]
+        keep = [c for c in [
+            "ticker", "company", "sector", "industry", "asset_type",
+            "market_cap", "price",
+            # valuation outputs
+            "wfv", "fair_bear", "fair_risk", "fair_base", "fair_bull",
+            "price_to_wfv", "upside_pct", "zone_label", "valuation_anchors",
+            score_col,
+        ] if c in top.columns]
+
         top_view = top[keep] if keep else top
         csv_name = f"top{int(top_n)}_{name}.csv"
         top_view.to_csv(run_dir / csv_name, index=False)

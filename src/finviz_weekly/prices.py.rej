@@ -1,0 +1,22 @@
+@@ -1,12 +1,12 @@
+ from __future__ import annotations
+ 
+ import datetime as dt
+ import os
+ from dataclasses import dataclass
+ from pathlib import Path
+ from typing import Iterable
+ 
+ import pandas as pd
+ 
+ try:
+     import yfinance as yf
+@@ -23,7 +23,7 @@
+ def _env_price_source() -> str:
+     raw = (os.getenv("FINVIZ_PRICE_SOURCE") or "stooq").strip().lower()
+     if raw not in {"stooq", "yahoo"}:
+-        logger.warning("FINVIZ_PRICE_SOURCE=%s not in {stooq,yahoo}; defaulting to stooq", raw)
++        log.warning("FINVIZ_PRICE_SOURCE=%s not in {stooq,yahoo}; defaulting to stooq", raw)
+         return "stooq"
+     return raw
+ 

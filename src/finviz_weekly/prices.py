@@ -22,6 +22,7 @@ class PriceFetchConfig:
     max_workers: int = 10
     timeout_sec: int = 10
     retries: int = 2
+    auto_adjust: bool = True
     backoff_sec: float = 0.5
     ping_timeout_sec: int = 3
 
@@ -38,7 +39,7 @@ def _env_price_source() -> str:
         return "stooq"
     if v in {"auto"}:
         return "auto"
-    logger.warning("Unknown FINVIZ_PRICE_SOURCE=%r; using auto.", v)
+    log.warning("Unknown FINVIZ_PRICE_SOURCE=%r; using auto.", v)
     return "auto"
 
 
@@ -180,7 +181,7 @@ def _fetch_yahoo_daily(ticker: str, cfg: PriceFetchConfig) -> pd.DataFrame:
     # Yahoo returns timezone-aware DatetimeIndex; we convert to date.
     # Use a long period so we can compute 21d/63d/126d forward returns reliably.
     period = f"{cfg.lookback_years}y"
-    data = yf.download(ticker, period=period, interval="1d", auto_adjust=False, progress=False)
+    data = yf.download(ticker, period=period, interval="1d", auto_adjust=getattr(cfg, "auto_adjust", False), progress=False)
 
     if data is None or len(data) == 0:
         return pd.DataFrame()
