@@ -11,6 +11,8 @@ from .http import create_session
 from .pipeline import execute
 from .screen import run_screening
 from .learn import train_weights
+from .report import write_report_from_latest
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -22,7 +24,7 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
         "command",
         nargs="?",
         default="run",
-        choices=["run", "screen", "train"],
+        choices=["run", "screen", "train", "report"],
         help="Command to execute (default: run).",
     )
 
@@ -106,6 +108,10 @@ def main(argv: List[str] | None = None) -> None:
             min_rows_per_group=int(args.min_rows_per_group),
             group_col=str(args.group_col),
         )
+        return
+
+    if args.command == "report":
+        write_report_from_latest(out_dir=args.out)
         return
 
     # run

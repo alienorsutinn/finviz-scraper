@@ -1,17 +1,17 @@
 """Screening + scoring on top of data/latest/finviz_fundamentals.parquet.
 
-Outputs:
-- data/latest/finviz_scored.parquet
-- data/latest/top{N}_quality_value.csv
-- data/latest/top{N}_oversold_quality.csv
-- data/latest/top{N}_compounders.csv
-- data/latest/candidates.txt
+Outputs (latest + dated run folder):
+- finviz_scored.parquet
+- top{N}_*.csv for each theme (global + operating/assetmgr/bdc segments)
+- candidates*.txt (balanced union + segmented lists)
+- conviction_2plus.csv / conviction_3plus.csv / conviction.txt
+- report.md (one-page summary)
 """
 from __future__ import annotations
 
-import logging
 import json
-import re
+import logging
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -19,111 +19,75 @@ from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 
-from .storage import LATEST_DIR, RUNS_DIR, ensure_dir
+from .report import write_report
 
 LOGGER = logging.getLogger(__name__)
 
+LATEST_DIR = "latest"
+RUNS_DIR = "runs"
 LEARNED_WEIGHTS_DEFAULT = "learned_weights.json"
 
-def _load_learned_weights(path: Path):
-    if not path.exists():
-        return None
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
-        return None
-
-def _apply_learned_score(df, learned):
-    # learned format written by learn.py
-    feats = learned.get("features") or []
-    global_w = (learned.get("global") or {}).get("weights") or {}
-    group_col = learned.get("group_col") or None
-    groups = learned.get("groups") or {}
-
-    out = df.copy()
-    out["score_learned"] = 0.0
-
-    def score_row(row, wmap):
-        s = 0.0
-        for f in feats:
-            if f in out.columns:
-                try:
-                    s += float(wmap.get(f, 0.0)) * float(row.get(f, 0.0))
-                except Exception:
-                    pass
-        return s
-
-    if group_col and group_col in out.columns and groups:
-        # group-specific weights where available, else global
-        scores = []
-        for _, r in out.iterrows():
-            g = str(r.get(group_col, ""))
-            wmap = (groups.get(g) or {}).get("weights") or global_w
-            scores.append(score_row(r, wmap))
-        out["score_learned"] = scores
-    else:
-        wmap = global_w
-        out["score_learned"] = out.apply(lambda r: score_row(r, wmap), axis=1)
-
-    return out
+KNOWN_BDCS = {
+    "ARCC","MAIN","BXSL","OBDC","GBDC","BBDC","BCSF","KBDC","TRIN","FDUS","GAIN","GSBD","SLRC","HTGC","MSDL","MSIF","TCPC","PFLT","NMFC","CSWC"
+}
 
 
-def _canon(name: str) -> str:
-    s = str(name).lower().strip()
-    s = re.sub(r"[^a-z0-9]+", "_", s)
-    s = re.sub(r"_+", "_", s).strip("_")
-    return s
+@dataclass
+class ScreenResult:
+    name: str
+    ranked: pd.DataFrame
 
 
 def _build_colmap(df: pd.DataFrame) -> Dict[str, str]:
-    out: Dict[str, str] = {}
-    for c in df.columns:
-        out.setdefault(_canon(c), c)
-    return out
+    return {c.lower(): c for c in df.columns}
 
 
-def _get(df: pd.DataFrame, colmap: Dict[str, str], canonical: str) -> Optional[pd.Series]:
-    real = colmap.get(canonical)
-    return df[real] if real else None
+def _find_col(colmap: Dict[str, str], candidates: List[str]) -> Optional[str]:
+    for k in candidates:
+        c = colmap.get(k.lower())
+        if c:
+            return c
+    return None
 
 
-def _to_numeric(s: pd.Series) -> pd.Series:
-    def _coerce(x):
-        if isinstance(x, tuple):
-            return None
-        return x
-    return pd.to_numeric(s.map(_coerce), errors="coerce")
+def _parse_num(x: object) -> float:
+    if x is None:
+        return float("nan")
+    s = str(x).strip()
+    if s in ("", "-", "nan", "None"):
+        return float("nan")
+    s = s.replace("%", "").replace(",", "")
+    mult = 1.0
+    if s.endswith("B"):
+        mult = 1e9
+        s = s[:-1]
+    elif s.endswith("M"):
+        mult = 1e6
+        s = s[:-1]
+    elif s.endswith("K"):
+        mult = 1e3
+        s = s[:-1]
+    try:
+        return float(s) * mult
+    except Exception:
+        return float("nan")
 
 
-def _winsorize(s: pd.Series, low_q: float = 0.01, high_q: float = 0.99) -> pd.Series:
-    s = s.copy()
-    non_na = s.dropna()
-    if len(non_na) < 30:
-        return s
-    lo = non_na.quantile(low_q)
-    hi = non_na.quantile(high_q)
-    return s.clip(lower=lo, upper=hi)
+def _to_num(s: pd.Series) -> pd.Series:
+    return s.map(_parse_num)
 
 
-def _pct_score(s: pd.Series, *, higher_better: bool = True) -> pd.Series:
-    x = _winsorize(_to_numeric(s))
-    r = x.rank(pct=True, method="average")
-    if not higher_better:
-        r = 1.0 - r
-    return r.fillna(0.0)
+def _pct_score(s: pd.Series, *, higher_better: bool) -> pd.Series:
+    v = _to_num(s)
+    r = v.rank(pct=True)
+    return r if higher_better else (1.0 - r)
 
 
 def _mean_or_zero(parts: List[pd.Series], *, index: pd.Index) -> pd.Series:
     if not parts:
-        return pd.Series(0.0, index=index)
-    tmp = pd.concat(parts, axis=1)
-    return tmp.mean(axis=1).reindex(index).fillna(0.0)
-
-
-@dataclass(frozen=True)
-class ScreenResult:
-    name: str
-    ranked: pd.DataFrame
+        return pd.Series([0.0] * len(index), index=index)
+    dfp = pd.concat(parts, axis=1)
+    return dfp.mean(axis=1).fillna(0.0)
 
 
 def score_snapshot(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, ScreenResult]]:
@@ -132,57 +96,53 @@ def score_snapshot(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, ScreenResu
 
     colmap = _build_colmap(df)
 
-    def col(name: str) -> Optional[pd.Series]:
-        return _get(df, colmap, name)
+    def get_series(names: List[str]) -> Optional[pd.Series]:
+        c = _find_col(colmap, names)
+        return df[c] if c else None
 
-    # Value (lower is better)
+    # --- factor scores (robust to missing columns) ---
     value_parts: List[pd.Series] = []
     for nm in ["forward_p_e", "p_e", "p_s", "p_b", "p_fcf", "ev_ebitda"]:
-        s = col(nm)
+        s = get_series([nm])
         if s is not None:
             value_parts.append(_pct_score(s, higher_better=False))
     value_score = _mean_or_zero(value_parts, index=df.index)
 
-    # Quality (higher is better)
     quality_parts: List[pd.Series] = []
-    for nm in ["roe", "roa", "roi", "roic", "gross_margin", "oper_margin", "profit_margin"]:
-        s = col(nm)
+    for nm in ["roi", "roe", "roa", "gross_margin", "oper_margin", "profit_margin"]:
+        s = get_series([nm])
         if s is not None:
             quality_parts.append(_pct_score(s, higher_better=True))
     quality_score = _mean_or_zero(quality_parts, index=df.index)
 
-    # Risk (mixed)
     risk_parts: List[pd.Series] = []
-    for nm in ["debt_eq", "lt_debt_eq", "beta", "volatility_w", "volatility_m"]:
-        s = col(nm)
-        if s is not None:
-            risk_parts.append(_pct_score(s, higher_better=False))
-    for nm in ["current_ratio", "quick_ratio", "market_cap"]:
-        s = col(nm)
+    for nm in ["current_ratio", "quick_ratio"]:
+        s = get_series([nm])
         if s is not None:
             risk_parts.append(_pct_score(s, higher_better=True))
+    for nm in ["debt_eq", "lt_debt_eq", "beta"]:
+        s = get_series([nm])
+        if s is not None:
+            risk_parts.append(_pct_score(s, higher_better=False))
     risk_score = _mean_or_zero(risk_parts, index=df.index)
 
-    # Growth proxies
     growth_parts: List[pd.Series] = []
-    for nm in ["eps_next_5y", "sales_past_5y", "eps_this_y", "eps_next_y", "sales_q_q", "eps_q_q"]:
-        s = col(nm)
+    for nm in ["sales_growth_past_5y", "eps_growth_past_5y", "sales_growth_qoq", "eps_growth_qoq"]:
+        s = get_series([nm])
         if s is not None:
             growth_parts.append(_pct_score(s, higher_better=True))
     growth_score = _mean_or_zero(growth_parts, index=df.index)
 
-    # Momentum (optional)
     momentum_parts: List[pd.Series] = []
-    for nm in ["perf_month", "perf_quarter", "perf_year", "perf_ytd", "sma50", "sma200"]:
-        s = col(nm)
+    for nm in ["perf_quarter", "perf_half_y", "perf_year"]:
+        s = get_series([nm])
         if s is not None:
             momentum_parts.append(_pct_score(s, higher_better=True))
     momentum_score = _mean_or_zero(momentum_parts, index=df.index)
 
-    # Oversold (lower is better)
     oversold_parts: List[pd.Series] = []
     for nm in ["rsi_14", "perf_month", "perf_week"]:
-        s = col(nm)
+        s = get_series([nm])
         if s is not None:
             oversold_parts.append(_pct_score(s, higher_better=False))
     oversold_score = _mean_or_zero(oversold_parts, index=df.index)
@@ -195,16 +155,44 @@ def score_snapshot(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, ScreenResu
     out["score_momentum"] = momentum_score
     out["score_oversold"] = oversold_score
 
+    # --- existing composites ---
     out["score_quality_value"] = 0.45 * out["score_quality"] + 0.45 * out["score_value"] + 0.10 * out["score_risk"]
     out["score_oversold_quality"] = 0.45 * out["score_quality"] + 0.35 * out["score_oversold"] + 0.20 * out["score_risk"]
     out["score_compounders"] = 0.50 * out["score_quality"] + 0.25 * out["score_growth"] + 0.15 * out["score_value"] + 0.10 * out["score_momentum"]
 
+    # --- new themes (do NOT require extra columns) ---
+    out["score_hq_low_leverage"] = 0.60 * out["score_quality"] + 0.40 * out["score_risk"]
+    out["score_turnaround_value"] = 0.45 * out["score_oversold"] + 0.35 * out["score_value"] + 0.20 * out["score_quality"]
+    out["score_garp"] = 0.35 * out["score_quality"] + 0.35 * out["score_growth"] + 0.25 * out["score_value"] + 0.05 * out["score_risk"]
+
+    # demonstrating “shareholder yield” only if dividend exists
+    div_col = _find_col(colmap, ["dividend_yield", "dividend", "dividend_%", "dividend%"])
+    if div_col:
+        div_score = _pct_score(out[div_col], higher_better=True).fillna(0.0)
+        out["score_shareholder_yield"] = 0.55 * div_score + 0.25 * out["score_value"] + 0.20 * out["score_risk"]
+
+    # “short squeeze / crowded” only if short float exists
+    sf_col = _find_col(colmap, ["short_float", "short_float_%", "shortfloat", "short_interest"])
+    if sf_col:
+        sf_score = _pct_score(out[sf_col], higher_better=True).fillna(0.0)
+        out["score_short_squeeze"] = 0.40 * sf_score + 0.30 * out["score_oversold"] + 0.30 * out["score_momentum"]
+
+    # --- screens dict ---
     screens: Dict[str, ScreenResult] = {}
-    for name, score_col in [
+    theme_defs = [
         ("quality_value", "score_quality_value"),
         ("oversold_quality", "score_oversold_quality"),
         ("compounders", "score_compounders"),
-    ]:
+        ("hq_low_leverage", "score_hq_low_leverage"),
+        ("turnaround_value", "score_turnaround_value"),
+        ("garp", "score_garp"),
+    ]
+    if "score_shareholder_yield" in out.columns:
+        theme_defs.append(("shareholder_yield", "score_shareholder_yield"))
+    if "score_short_squeeze" in out.columns:
+        theme_defs.append(("short_squeeze", "score_short_squeeze"))
+
+    for name, score_col in theme_defs:
         ranked = out.sort_values(score_col, ascending=False, kind="mergesort").reset_index(drop=True)
         ranked["rank"] = ranked.index + 1
         screens[name] = ScreenResult(name=name, ranked=ranked)
@@ -224,28 +212,103 @@ def _infer_as_of(df: pd.DataFrame) -> date:
 def _read_latest(out_dir: str) -> pd.DataFrame:
     path = Path(out_dir) / LATEST_DIR / "finviz_fundamentals.parquet"
     if not path.exists():
-        raise FileNotFoundError(f"Latest snapshot not found at {path}. Run the scraper first.")
+        raise FileNotFoundError(f"Latest snapshot not found: {path}")
     return pd.read_parquet(path)
 
 
 def _apply_basic_filters(df: pd.DataFrame, *, min_market_cap: float, min_price: float) -> pd.DataFrame:
-    if df.empty:
-        return df
-    colmap = _build_colmap(df)
     out = df.copy()
+    colmap = _build_colmap(out)
 
-    if "__status" in out.columns:
-        out = out[out["__status"] == "ok"].copy()
+    mc_col = _find_col(colmap, ["market_cap"])
+    if mc_col:
+        out["_mc"] = _to_num(out[mc_col])
+        out = out[out["_mc"] >= float(min_market_cap)].copy()
 
-    mc = _get(out, colmap, "market_cap")
-    if mc is not None:
-        out = out[_to_numeric(mc) >= float(min_market_cap)].copy()
+    px_col = _find_col(colmap, ["price"])
+    if px_col:
+        out["_px"] = pd.to_numeric(out[px_col], errors="coerce")
+        out = out[out["_px"] >= float(min_price)].copy()
 
-    price = _get(out, colmap, "price")
-    if price is not None:
-        out = out[_to_numeric(price) >= float(min_price)].copy()
+    return out.drop(columns=[c for c in ["_mc", "_px"] if c in out.columns], errors="ignore")
+
+
+def _tag_asset_type(df: pd.DataFrame) -> pd.DataFrame:
+    out = df.copy()
+    out["ticker"] = out["ticker"].astype(str).str.upper()
+
+    sector = out["sector"].astype(str) if "sector" in out.columns else pd.Series([""] * len(out), index=out.index)
+    industry = out["industry"].astype(str) if "industry" in out.columns else pd.Series([""] * len(out), index=out.index)
+
+    is_bdc = (
+        out["ticker"].isin(KNOWN_BDCS)
+        | industry.str.contains("business development", case=False, na=False)
+        | industry.str.contains(r"\bBDC\b", case=False, na=False)
+    )
+
+    is_asset_mgr = (
+        sector.str.contains("financial", case=False, na=False)
+        & (
+            industry.str.contains("asset management", case=False, na=False)
+            | industry.str.contains("capital markets", case=False, na=False)
+            | industry.str.contains("financial data", case=False, na=False)
+            | industry.str.contains("broker", case=False, na=False)
+        )
+        & (~is_bdc)
+    )
+
+    out["asset_type"] = "operating"
+    out.loc[is_asset_mgr, "asset_type"] = "asset_manager"
+    out.loc[is_bdc, "asset_type"] = "bdc"
+    return out
+
+
+def _load_learned_weights(path: Path):
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+def _apply_learned_score(df: pd.DataFrame, learned: dict) -> pd.DataFrame:
+    feats = learned.get("features") or []
+    global_w = (learned.get("global") or {}).get("weights") or {}
+    group_col = learned.get("group_col") or None
+    groups = learned.get("groups") or {}
+
+    out = df.copy()
+    out["score_learned"] = 0.0
+
+    def score_row(row, wmap):
+        s = 0.0
+        for f in feats:
+            if f in out.columns:
+                try:
+                    s += float(wmap.get(f, 0.0)) * float(row.get(f, 0.0))
+                except Exception:
+                    pass
+        return s
+
+    if group_col and group_col in out.columns and groups:
+        scores = []
+        for _, r in out.iterrows():
+            g = str(r.get(group_col, ""))
+            wmap = (groups.get(g) or {}).get("weights") or global_w
+            scores.append(score_row(r, wmap))
+        out["score_learned"] = scores
+    else:
+        wmap = global_w
+        out["score_learned"] = out.apply(lambda r: score_row(r, wmap), axis=1)
 
     return out
+
+
+def _top(df: pd.DataFrame, score_col: str, n: int) -> pd.DataFrame:
+    if df.empty:
+        return df
+    return df.sort_values(score_col, ascending=False, kind="mergesort").head(int(n)).copy()
 
 
 def run_screening(
@@ -263,53 +326,156 @@ def run_screening(
         return
 
     as_of = _infer_as_of(latest)
-    run_dir = ensure_dir(Path(out_dir) / RUNS_DIR / as_of.isoformat())
-    latest_dir = ensure_dir(Path(out_dir) / LATEST_DIR)
+    run_dir = Path(out_dir) / RUNS_DIR / as_of.isoformat()
+    latest_dir = Path(out_dir) / LATEST_DIR
+    run_dir.mkdir(parents=True, exist_ok=True)
+    latest_dir.mkdir(parents=True, exist_ok=True)
 
     scored, screens = score_snapshot(latest)
+    scored = _tag_asset_type(scored)
 
-    scored.to_parquet(run_dir / "finviz_scored.parquet", index=False, compression="snappy")
-    scored.to_parquet(latest_dir / "finviz_scored.parquet", index=False, compression="snappy")
+    scored.to_parquet(run_dir / "finviz_scored.parquet", index=False)
+    scored.to_parquet(latest_dir / "finviz_scored.parquet", index=False)
 
-    unions: List[str] = []
+    lists: Dict[str, pd.DataFrame] = {}
+    unions_operating: List[str] = []
+    unions_asset: List[str] = []
+    unions_bdc: List[str] = []
 
+    def export_list(name: str, df: pd.DataFrame, score_col: str):
+        top = _top(df, score_col, top_n)
+        keep = [c for c in ["ticker","company","sector","industry","asset_type","market_cap","price",score_col] if c in top.columns]
+        top_view = top[keep] if keep else top
+        csv_name = f"top{int(top_n)}_{name}.csv"
+        top_view.to_csv(run_dir / csv_name, index=False)
+        top_view.to_csv(latest_dir / csv_name, index=False)
+        lists[name] = top_view
+        if "ticker" in top.columns:
+            return [str(t).strip().upper() for t in top["ticker"].tolist() if str(t).strip()]
+        return []
+
+    # Export all screens returned by score_snapshot
     for key, res in screens.items():
-        score_col = {
+        score_col = None
+        for c in res.ranked.columns:
+            if c.startswith("score_") and c.endswith(key) and c in res.ranked.columns:
+                score_col = c
+        # fallback: we know rank is computed by sorting on a score column, so just use the known mapping:
+        mapping = {
             "quality_value": "score_quality_value",
             "oversold_quality": "score_oversold_quality",
             "compounders": "score_compounders",
-        }[key]
+            "hq_low_leverage": "score_hq_low_leverage",
+            "turnaround_value": "score_turnaround_value",
+            "garp": "score_garp",
+            "shareholder_yield": "score_shareholder_yield",
+            "short_squeeze": "score_short_squeeze",
+        }
+        score_col = mapping.get(key)
+        if not score_col or score_col not in scored.columns:
+            continue
 
-        top = res.ranked.head(int(top_n)).copy()
-        keep = [c for c in ["ticker","company","sector","industry","market_cap","price",
-                            "score_value","score_quality","score_risk",score_col,"rank"] if c in top.columns]
-        top_view = top[keep] if keep else top
+        export_list(key, scored, score_col)
 
-        csv_name = f"top{int(top_n)}_{key}.csv"
-        top_view.to_csv(run_dir / csv_name, index=False)
-        top_view.to_csv(latest_dir / csv_name, index=False)
+        op = scored[scored["asset_type"] == "operating"].copy()
+        am = scored[scored["asset_type"] == "asset_manager"].copy()
+        bd = scored[scored["asset_type"] == "bdc"].copy()
 
-        if "ticker" in top.columns:
-            unions.extend([str(t).strip().upper() for t in top["ticker"].tolist() if str(t).strip()])
+        unions_operating.extend(export_list(f"operating_{key}", op, score_col))
+        unions_asset.extend(export_list(f"assetmgr_{key}", am, score_col))
+        unions_bdc.extend(export_list(f"bdc_{key}", bd, score_col))
 
-    candidates = list(dict.fromkeys(unions))[: int(candidates_max)]
-    (run_dir / "candidates.txt").write_text("\n".join(candidates) + ("\n" if candidates else ""))
-    (latest_dir / "candidates.txt").write_text("\n".join(candidates) + ("\n" if candidates else ""))
-    # --- Learned composite ranking (if learned_weights.json exists) ---
+    # Learned composite (if weights exist)
     learned = _load_learned_weights(Path(out_dir) / LATEST_DIR / LEARNED_WEIGHTS_DEFAULT)
     if learned:
         scored2 = _apply_learned_score(scored, learned)
-        top = scored2.sort_values("score_learned", ascending=False, kind="mergesort").head(int(top_n)).copy()
+        scored2 = _tag_asset_type(scored2)
 
-        keep = [c for c in ["ticker","company","sector","industry","market_cap","price",
-                            "score_value","score_quality","score_risk","score_learned"] if c in top.columns]
-        top_view = top[keep] if keep else top
-        csv_name = f"top{int(top_n)}_learned.csv"
-        top_view.to_csv(run_dir / csv_name, index=False)
-        top_view.to_csv(latest_dir / csv_name, index=False)
+        export_list("learned", scored2, "score_learned")
+        unions_operating.extend(export_list("operating_learned", scored2[scored2["asset_type"]=="operating"].copy(), "score_learned"))
+        unions_asset.extend(export_list("assetmgr_learned", scored2[scored2["asset_type"]=="asset_manager"].copy(), "score_learned"))
+        unions_bdc.extend(export_list("bdc_learned", scored2[scored2["asset_type"]=="bdc"].copy(), "score_learned"))
 
-        if "ticker" in top.columns:
-            unions.extend([str(t).strip().upper() for t in top["ticker"].tolist() if str(t).strip()])
+    def dedupe(xs: List[str]) -> List[str]:
+        return list(dict.fromkeys([x for x in xs if x]))
 
+    unions_operating = dedupe(unions_operating)
+    unions_asset = dedupe(unions_asset)
+    unions_bdc = dedupe(unions_bdc)
 
-    LOGGER.info("Screening done for %s. Outputs in %s and %s", as_of.isoformat(), run_dir, latest_dir)
+    # Balanced candidates caps
+    operating_cap = max(1, int(0.70 * candidates_max))
+    asset_cap = max(0, int(0.20 * candidates_max))
+    bdc_cap = max(0, candidates_max - operating_cap - asset_cap)
+
+    op = unions_operating[:operating_cap]
+    am = unions_asset[:asset_cap]
+    bd = unions_bdc[:bdc_cap]
+
+    union = dedupe(op + am + bd)
+    if len(union) < candidates_max:
+        remainder = []
+        remainder.extend(unions_operating[operating_cap:])
+        remainder.extend(unions_asset[asset_cap:])
+        remainder.extend(unions_bdc[bdc_cap:])
+        union = dedupe(union + remainder)[: int(candidates_max)]
+
+    def write_txt(path: Path, ticks: List[str]):
+        path.write_text("\n".join(ticks) + ("\n" if ticks else ""), encoding="utf-8")
+
+    write_txt(run_dir / "candidates_operating.txt", op)
+    write_txt(latest_dir / "candidates_operating.txt", op)
+    write_txt(run_dir / "candidates_asset_managers.txt", am)
+    write_txt(latest_dir / "candidates_asset_managers.txt", am)
+    write_txt(run_dir / "candidates_bdc.txt", bd)
+    write_txt(latest_dir / "candidates_bdc.txt", bd)
+    write_txt(run_dir / "candidates.txt", union)
+    write_txt(latest_dir / "candidates.txt", union)
+
+    # Conviction lists: tickers appearing in 2+ / 3+ lists (across ALL exported top lists)
+    list_membership = defaultdict(list)
+    for list_name, df_list in lists.items():
+        if "ticker" not in df_list.columns:
+            continue
+        for t in df_list["ticker"].astype(str).str.upper().tolist():
+            if t:
+                list_membership[t].append(list_name)
+
+    rows = []
+    for t, lsts in list_membership.items():
+        rows.append({"ticker": t, "count": len(set(lsts)), "lists": ", ".join(sorted(set(lsts)))})
+    conv = pd.DataFrame(rows).sort_values(["count", "ticker"], ascending=[False, True])
+
+    conv2 = conv[conv["count"] >= 2].copy()
+    conv3 = conv[conv["count"] >= 3].copy()
+
+    conv2.to_csv(run_dir / "conviction_2plus.csv", index=False)
+    conv2.to_csv(latest_dir / "conviction_2plus.csv", index=False)
+    conv3.to_csv(run_dir / "conviction_3plus.csv", index=False)
+    conv3.to_csv(latest_dir / "conviction_3plus.csv", index=False)
+
+    write_txt(run_dir / "conviction.txt", conv2["ticker"].head(200).tolist())
+    write_txt(latest_dir / "conviction.txt", conv2["ticker"].head(200).tolist())
+
+    # Report
+    write_report(
+        out_dir=out_dir,
+        as_of=as_of.isoformat(),
+        scored=scored,
+        lists=lists,
+        candidates_by_group={
+            "operating": op,
+            "asset_manager": am,
+            "bdc": bd,
+            "union": union,
+        },
+    )
+
+    LOGGER.info(
+        "Screening done for %s. Outputs in %s and %s (candidates=%d, conviction_2plus=%d)",
+        as_of.isoformat(),
+        run_dir,
+        latest_dir,
+        len(union),
+        int(len(conv2)),
+    )
