@@ -8,7 +8,9 @@ from .base import SearchProvider, SearchResult
 class MockSearchProvider(SearchProvider):
     """Deterministic provider for tests; returns simple canned results."""
 
-    def search(self, query: str, *, recency_days: int, max_results: int) -> List[SearchResult]:
+    name = "mock"
+
+    def search(self, query: str, *, recency_days: int, max_results: int, timeout: int) -> List[SearchResult]:
         results = []
         for i in range(min(max_results, 3)):
             results.append(

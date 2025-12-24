@@ -2,9 +2,30 @@
 
 - Weights mode: **fallback**
 
+- Learned scoring: **disabled** (flag_off)
+
 - Rows (total): **2945**
 
 - Rows (__status==ok): **2945**
+
+
+## Key artifacts
+
+- data/latest/finviz_fundamentals.parquet
+
+- data/runs/2025-12-23/finviz_fundamentals.parquet
+
+- data/latest/finviz_scored.parquet
+
+- data/latest/finviz_scored.csv.gz
+
+- data/runs/2025-12-23/finviz_scored.parquet
+
+- data/runs/2025-12-23/finviz_scored.csv.gz
+
+- data/latest/candidates.txt
+
+- data/latest/conviction_2plus.csv
 
 
 ## Asset type mix
@@ -14,6 +35,13 @@
 | operating     | 2783  |
 | asset_manager | 142   |
 | bdc           | 20    |
+
+
+## Valuation zones (count)
+
+| zone_label | count |
+| ---------- | ----- |
+| WATCH      | 2945  |
 
 
 ## Top sectors (count)
@@ -30,6 +58,11 @@
 | Basic Materials        | 142   |
 | Consumer Defensive     | 139   |
 | Communication Services | 113   |
+
+
+## Top opportunities (quick scan)
+
+_(none with >=2 anchors)_
 
 
 ## Screen top 10s
@@ -81,22 +114,6 @@
 | FHI    | Federated Hermes Inc               | Financial | Asset Management                 | 4,150,000,000.00  | 53.57  |
 | MKTX   | MarketAxess Holdings Inc           | Financial | Capital Markets                  | 6,730,000,000.00  | 181.18 |
 | VALU   | Value Line, Inc                    | Financial | Financial Data & Stock Exchanges | 366,390,000.00    | 39.02  |
-
-
-### assetmgr_learned
-
-| ticker | company                               | sector    | industry         | market_cap        | price  |
-| ------ | ------------------------------------- | --------- | ---------------- | ----------------- | ------ |
-| AAMI   | Acadian Asset Management Inc          | Financial | Asset Management | 1,720,000,000.00  | 48.14  |
-| AB     | AllianceBernstein Holding Lp          | Financial | Asset Management | 3,560,000,000.00  | 39.07  |
-| ALTI   | AlTi Global Inc                       | Financial | Asset Management | 680,470,000.00    | 4.64   |
-| AMG    | Affiliated Managers Group Inc         | Financial | Asset Management | 8,090,000,000.00  | 287.67 |
-| AMP    | Ameriprise Financial Inc              | Financial | Asset Management | 46,070,000,000.00 | 495.92 |
-| APAM   | Artisan Partners Asset Management Inc | Financial | Asset Management | 3,380,000,000.00  | 41.83  |
-| APO    | Apollo Global Management Inc          | Financial | Asset Management | 86,420,000,000.00 | 148.89 |
-| ARES   | Ares Management Corp                  | Financial | Asset Management | 55,660,000,000.00 | 170.29 |
-| BAM    | Brookfield Asset Management Ltd       | Financial | Asset Management | 87,250,000,000.00 | 53.27  |
-| BBUC   | Brookfield Business Corp              | Financial | Asset Management | 3,460,000,000.00  | 36.05  |
 
 
 ### assetmgr_oversold_quality
@@ -211,22 +228,6 @@
 | BXSL   | Blackstone Secured Lending Fund    | Financial | Asset Management | 6,270,000,000.00  | 27.11 |
 
 
-### bdc_learned
-
-| ticker | company                            | sector    | industry         | market_cap        | price |
-| ------ | ---------------------------------- | --------- | ---------------- | ----------------- | ----- |
-| ARCC   | Ares Capital Corp                  | Financial | Asset Management | 14,250,000,000.00 | 19.91 |
-| BBDC   | Barings BDC Inc                    | Financial | Asset Management | 928,550,000.00    | 8.83  |
-| BCSF   | Bain Capital Specialty Finance Inc | Financial | Asset Management | 890,000,000.00    | 13.72 |
-| BXSL   | Blackstone Secured Lending Fund    | Financial | Asset Management | 6,270,000,000.00  | 27.11 |
-| CSWC   | Capital Southwest Corp             | Financial | Asset Management | 1,240,000,000.00  | 21.50 |
-| FDUS   | Fidus Investment Corp              | Financial | Asset Management | 683,740,000.00    | 18.77 |
-| GAIN   | Gladstone Investment Corporation   | Financial | Asset Management | 544,740,000.00    | 13.74 |
-| GBDC   | Golub Capital BDC Inc              | Financial | Asset Management | 3,560,000,000.00  | 13.50 |
-| GSBD   | Goldman Sachs BDC Inc              | Financial | Asset Management | 1,100,000,000.00  | 9.61  |
-| HTGC   | Hercules Capital Inc               | Financial | Asset Management | 3,340,000,000.00  | 18.39 |
-
-
 ### bdc_oversold_quality
 
 | ticker | company                            | sector    | industry         | market_cap        | price |
@@ -339,22 +340,6 @@
 | UTHR   | United Therapeutics Corp       | Healthcare             | Drug Manufacturers - Specialty & Generic | 22,120,000,000.00 | 513.79 |
 
 
-### learned
-
-| ticker | company                            | sector                 | industry                 | market_cap         | price  |
-| ------ | ---------------------------------- | ---------------------- | ------------------------ | ------------------ | ------ |
-| USA    | Liberty All-Star Equity Fund       | Financial              | Closed-End Fund - Equity | 1,840,000,000.00   | 6.25   |
-| APP    | Applovin Corp                      | Communication Services | Advertising Agencies     | 247,920,000,000.00 | 733.60 |
-| CCO    | Clear Channel Outdoor Holdings Inc | Communication Services | Advertising Agencies     | 1,070,000,000.00   | 2.16   |
-| CRTO   | Criteo S.A ADR                     | Communication Services | Advertising Agencies     | 1,030,000,000.00   | 19.66  |
-| DV     | DoubleVerify Holdings Inc          | Communication Services | Advertising Agencies     | 1,820,000,000.00   | 11.28  |
-| EEX    | Emerald Holding Inc                | Communication Services | Advertising Agencies     | 939,580,000.00     | 4.75   |
-| IAS    | Integral Ad Science Holding Corp   | Communication Services | Advertising Agencies     | 1,740,000,000.00   | 10.34  |
-| MGNI   | Magnite Inc                        | Communication Services | Advertising Agencies     | 2,360,000,000.00   | 16.44  |
-| NCMI   | National Cinemedia Inc             | Communication Services | Advertising Agencies     | 361,250,000.00     | 3.85   |
-| NEXN   | Nexxen International Ltd           | Communication Services | Advertising Agencies     | 413,550,000.00     | 6.48   |
-
-
 ### operating_compounders
 
 | ticker | company                                      | sector            | industry                         | market_cap       | price |
@@ -401,22 +386,6 @@
 | GMAB   | Genmab ADR                     | Healthcare             | Biotechnology                            | 20,360,000,000.00 | 33.06  |
 | EXEL   | Exelixis Inc                   | Healthcare             | Biotechnology                            | 12,380,000,000.00 | 46.19  |
 | UTHR   | United Therapeutics Corp       | Healthcare             | Drug Manufacturers - Specialty & Generic | 22,120,000,000.00 | 513.79 |
-
-
-### operating_learned
-
-| ticker | company                            | sector                 | industry                 | market_cap         | price  |
-| ------ | ---------------------------------- | ---------------------- | ------------------------ | ------------------ | ------ |
-| USA    | Liberty All-Star Equity Fund       | Financial              | Closed-End Fund - Equity | 1,840,000,000.00   | 6.25   |
-| APP    | Applovin Corp                      | Communication Services | Advertising Agencies     | 247,920,000,000.00 | 733.60 |
-| CCO    | Clear Channel Outdoor Holdings Inc | Communication Services | Advertising Agencies     | 1,070,000,000.00   | 2.16   |
-| CRTO   | Criteo S.A ADR                     | Communication Services | Advertising Agencies     | 1,030,000,000.00   | 19.66  |
-| DV     | DoubleVerify Holdings Inc          | Communication Services | Advertising Agencies     | 1,820,000,000.00   | 11.28  |
-| EEX    | Emerald Holding Inc                | Communication Services | Advertising Agencies     | 939,580,000.00     | 4.75   |
-| IAS    | Integral Ad Science Holding Corp   | Communication Services | Advertising Agencies     | 1,740,000,000.00   | 10.34  |
-| MGNI   | Magnite Inc                        | Communication Services | Advertising Agencies     | 2,360,000,000.00   | 16.44  |
-| NCMI   | National Cinemedia Inc             | Communication Services | Advertising Agencies     | 361,250,000.00     | 3.85   |
-| NEXN   | Nexxen International Ltd           | Communication Services | Advertising Agencies     | 413,550,000.00     | 6.48   |
 
 
 ### operating_oversold_quality
@@ -550,24 +519,24 @@
 ## Candidates
 
 
-### operating (1)
+### operating (70)
 
-`FINV`
-
-
-### asset_manager (0)
-
-_(none)_
+`FINV, DDI, QFIN, YRD, WW, SOHU, LUXE, ESEA, LX, GSL, SIGA, WB, CALM, PTCT, DAC, INMD, SLDE, IRS, CHA, ACIC, CRMD, CDLR, HG, CRTO, EMBC, HLF, HRTG, SM, IHS, NMIH, VSTA, KROS, REPX, SBC, TK, NUS, NVAX, PBR, HRB, RIGL, GRVY, ALL, INVA, NUTX, HRMY, IGIC, SLI, TNK, PXED, YELP, CVAC, SBR, ARGX, HCM, ARM, FIZZ, BSM, NVEC, PHOE, DHT, DOCS, LOGI, TRON, RYN, ABT, RMD, ABEV, NVO, TGTX, NBIX`
 
 
-### bdc (0)
+### asset_manager (20)
 
-_(none)_
+`NOAH, DHIL, AB, RWAY, VRTS, TROW, ETOR, TIGR, FHI, APAM, NMAI, NCDL, OTF, JHG, VCTR, SAR, SEIC, VIRT, MRX, CGBD`
 
 
-### union (1)
+### bdc (10)
 
-`FINV`
+`FDUS, TRIN, SLRC, GSBD, GAIN, BBDC, BCSF, MAIN, HTGC, KBDC`
+
+
+### union (100)
+
+`FINV, DDI, QFIN, YRD, WW, SOHU, LUXE, ESEA, LX, GSL, SIGA, WB, CALM, PTCT, DAC, INMD, SLDE, IRS, CHA, ACIC, CRMD, CDLR, HG, CRTO, EMBC, HLF, HRTG, SM, IHS, NMIH, VSTA, KROS, REPX, SBC, TK, NUS, NVAX, PBR, HRB, RIGL, GRVY, ALL, INVA, NUTX, HRMY, IGIC, SLI, TNK, PXED, YELP, CVAC, SBR, ARGX, HCM, ARM, FIZZ, BSM, NVEC, PHOE, DHT, DOCS, LOGI, TRON, RYN, ABT, RMD, ABEV, NVO, TGTX, NBIX, NOAH, DHIL, AB, RWAY, VRTS, TROW, ETOR, TIGR, FHI, APAM, NMAI, NCDL, OTF, JHG, VCTR, SAR, SEIC, VIRT, MRX, CGBD, FDUS, TRIN, SLRC, GSBD, GAIN, BBDC, BCSF, MAIN, HTGC, KBDC`
 
 
 ## Most repeated tickers
@@ -575,141 +544,141 @@ _(none)_
 
 ### Appears in 3+ lists
 
-| ticker | lists_count |
-| ------ | ----------- |
-| AB     | 12          |
-| DDI    | 12          |
-| DHIL   | 11          |
-| NOAH   | 11          |
-| CALM   | 10          |
-| ESEA   | 10          |
-| FDUS   | 10          |
-| INMD   | 10          |
-| SIGA   | 10          |
-| ETOR   | 9           |
-| LUXE   | 9           |
-| APAM   | 8           |
-| ARCC   | 8           |
-| BBDC   | 8           |
-| BCSF   | 8           |
-| BSM    | 8           |
-| BXSL   | 8           |
-| CHA    | 8           |
-| CRMD   | 8           |
-| CRTO   | 8           |
-| CSWC   | 8           |
-| GAIN   | 8           |
-| GBDC   | 8           |
-| GSBD   | 8           |
-| HASI   | 8           |
-| HLF    | 8           |
-| HTGC   | 8           |
-| KBDC   | 8           |
-| KROS   | 8           |
-| MAIN   | 8           |
-| MSDL   | 8           |
-| MSIF   | 8           |
-| NMFC   | 8           |
-| OBDC   | 8           |
-| PAX    | 8           |
-| PFLT   | 8           |
-| PTCT   | 8           |
-| SLDE   | 8           |
-| SLI    | 8           |
-| SLRC   | 8           |
-| TCPC   | 8           |
-| TRIN   | 8           |
-| YRD    | 8           |
-| ALL    | 7           |
-| FDS    | 7           |
-| FHI    | 7           |
-| NCDL   | 7           |
-| NMAI   | 7           |
-| RWAY   | 7           |
-| SOHU   | 7           |
+| ticker | family_count | list_count | families                                                                                             | lists                                                                                                                                                                                                                                    |
+| ------ | ------------ | ---------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ETOR   | 7            | 9          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_short_squeeze, assetmgr_turnaround_value, hq_low_leverage, oversold_quality                                   |
+| FDUS   | 7            | 9          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value, oversold_quality, turnaround_value                                                                     |
+| APAM   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_short_squeeze, assetmgr_turnaround_value                                                                      |
+| ARCC   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| BBDC   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| BCSF   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| BXSL   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| CSWC   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| FDS    | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_short_squeeze, assetmgr_turnaround_value                                                                      |
+| GAIN   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| GBDC   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| GSBD   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| HASI   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_short_squeeze, assetmgr_turnaround_value                                                                      |
+| HTGC   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| KBDC   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| MAIN   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| MSDL   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| MSIF   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| NMFC   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| OBDC   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| PAX    | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_short_squeeze, assetmgr_turnaround_value                                                                      |
+| PFLT   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| SLRC   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| TCPC   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| TRIN   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| TROW   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_short_squeeze, assetmgr_turnaround_value                                                                      |
+| VCTR   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_short_squeeze, assetmgr_turnaround_value                                                                      |
+| DDI    | 6            | 12         | compounders, garp, hq_low_leverage, oversold_quality, quality_value, turnaround_value                | compounders, garp, hq_low_leverage, operating_compounders, operating_garp, operating_hq_low_leverage, operating_oversold_quality, operating_quality_value, operating_turnaround_value, oversold_quality, quality_value, turnaround_value |
+| AB     | 6            | 11         | compounders, garp, hq_low_leverage, oversold_quality, quality_value, turnaround_value                | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_turnaround_value, compounders, garp, hq_low_leverage, oversold_quality, quality_value                         |
+| DHIL   | 6            | 10         | compounders, garp, hq_low_leverage, oversold_quality, quality_value, turnaround_value                | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_turnaround_value, compounders, garp, hq_low_leverage, quality_value                                           |
+| NOAH   | 6            | 10         | compounders, garp, hq_low_leverage, oversold_quality, quality_value, turnaround_value                | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_turnaround_value, garp, oversold_quality, quality_value, turnaround_value                                     |
+| RWAY   | 6            | 7          | compounders, garp, oversold_quality, quality_value, short_squeeze, turnaround_value                  | assetmgr_compounders, assetmgr_garp, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_short_squeeze, assetmgr_turnaround_value, turnaround_value                                                                              |
+| XP     | 6            | 7          | compounders, garp, oversold_quality, quality_value, short_squeeze, turnaround_value                  | assetmgr_compounders, assetmgr_garp, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_short_squeeze, assetmgr_turnaround_value, turnaround_value                                                                              |
+| FUTU   | 6            | 6          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze                   | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_short_squeeze                                                                                                 |
+| LAZ    | 6            | 6          | compounders, garp, oversold_quality, quality_value, short_squeeze, turnaround_value                  | assetmgr_compounders, assetmgr_garp, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_short_squeeze, assetmgr_turnaround_value                                                                                                |
+| NMAI   | 6            | 6          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, turnaround_value                | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_turnaround_value                                                                                              |
+| WTW    | 6            | 6          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, turnaround_value                | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_turnaround_value                                                                                              |
+| CALM   | 5            | 10         | garp, hq_low_leverage, oversold_quality, quality_value, turnaround_value                             | garp, hq_low_leverage, operating_garp, operating_hq_low_leverage, operating_oversold_quality, operating_quality_value, operating_turnaround_value, oversold_quality, quality_value, turnaround_value                                     |
+| ESEA   | 5            | 10         | compounders, garp, oversold_quality, quality_value, turnaround_value                                 | compounders, garp, operating_compounders, operating_garp, operating_oversold_quality, operating_quality_value, operating_turnaround_value, oversold_quality, quality_value, turnaround_value                                             |
+| INMD   | 5            | 10         | compounders, garp, hq_low_leverage, oversold_quality, quality_value                                  | compounders, garp, hq_low_leverage, operating_compounders, operating_garp, operating_hq_low_leverage, operating_oversold_quality, operating_quality_value, oversold_quality, quality_value                                               |
+| SIGA   | 5            | 10         | compounders, garp, hq_low_leverage, oversold_quality, quality_value                                  | compounders, garp, hq_low_leverage, operating_compounders, operating_garp, operating_hq_low_leverage, operating_oversold_quality, operating_quality_value, oversold_quality, quality_value                                               |
+| LUXE   | 5            | 9          | compounders, garp, oversold_quality, quality_value, turnaround_value                                 | compounders, garp, operating_compounders, operating_garp, operating_oversold_quality, operating_quality_value, operating_turnaround_value, quality_value, turnaround_value                                                               |
+| FHI    | 5            | 6          | compounders, garp, hq_low_leverage, oversold_quality, quality_value                                  | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_quality_value, compounders                                                                                                            |
+| NCDL   | 5            | 6          | compounders, garp, oversold_quality, quality_value, turnaround_value                                 | assetmgr_compounders, assetmgr_garp, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_turnaround_value, turnaround_value                                                                                                      |
+| SEIC   | 5            | 6          | compounders, garp, hq_low_leverage, oversold_quality, quality_value                                  | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_quality_value, hq_low_leverage                                                                                                        |
+| AMP    | 5            | 5          | compounders, garp, hq_low_leverage, quality_value, turnaround_value                                  | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_quality_value, assetmgr_turnaround_value                                                                                                                         |
+| CNS    | 5            | 5          | compounders, garp, hq_low_leverage, oversold_quality, quality_value                                  | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_quality_value                                                                                                                         |
+| MARA   | 5            | 5          | garp, oversold_quality, quality_value, short_squeeze, turnaround_value                               | assetmgr_garp, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_short_squeeze, assetmgr_turnaround_value                                                                                                                      |
+| MFIC   | 5            | 5          | compounders, garp, oversold_quality, quality_value, turnaround_value                                 | assetmgr_compounders, assetmgr_garp, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_turnaround_value                                                                                                                        |
+| OTF    | 5            | 5          | compounders, garp, hq_low_leverage, quality_value, turnaround_value                                  | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_quality_value, assetmgr_turnaround_value                                                                                                                         |
 
 
 ### Appears in 2+ lists
 
-| ticker | lists_count |
-| ------ | ----------- |
-| AB     | 12          |
-| DDI    | 12          |
-| DHIL   | 11          |
-| NOAH   | 11          |
-| CALM   | 10          |
-| ESEA   | 10          |
-| FDUS   | 10          |
-| INMD   | 10          |
-| SIGA   | 10          |
-| ETOR   | 9           |
-| LUXE   | 9           |
-| APAM   | 8           |
-| ARCC   | 8           |
-| BBDC   | 8           |
-| BCSF   | 8           |
-| BSM    | 8           |
-| BXSL   | 8           |
-| CHA    | 8           |
-| CRMD   | 8           |
-| CRTO   | 8           |
-| CSWC   | 8           |
-| GAIN   | 8           |
-| GBDC   | 8           |
-| GSBD   | 8           |
-| HASI   | 8           |
-| HLF    | 8           |
-| HTGC   | 8           |
-| KBDC   | 8           |
-| KROS   | 8           |
-| MAIN   | 8           |
-| MSDL   | 8           |
-| MSIF   | 8           |
-| NMFC   | 8           |
-| OBDC   | 8           |
-| PAX    | 8           |
-| PFLT   | 8           |
-| PTCT   | 8           |
-| SLDE   | 8           |
-| SLI    | 8           |
-| SLRC   | 8           |
-| TCPC   | 8           |
-| TRIN   | 8           |
-| YRD    | 8           |
-| ALL    | 7           |
-| FDS    | 7           |
-| FHI    | 7           |
-| NCDL   | 7           |
-| NMAI   | 7           |
-| RWAY   | 7           |
-| SOHU   | 7           |
-| TROW   | 7           |
-| VCTR   | 7           |
-| XP     | 7           |
-| AAMI   | 6           |
-| ACIC   | 6           |
-| AMP    | 6           |
-| CNS    | 6           |
-| CPRX   | 6           |
-| CTMX   | 6           |
-| DAC    | 6           |
-| EMBC   | 6           |
-| FUTU   | 6           |
-| GSL    | 6           |
-| HG     | 6           |
-| HRB    | 6           |
-| HRMY   | 6           |
-| HRTG   | 6           |
-| IHS    | 6           |
-| INCY   | 6           |
-| INVA   | 6           |
-| IRS    | 6           |
-| LAZ    | 6           |
-| MFIC   | 6           |
-| NMIH   | 6           |
-| NUTX   | 6           |
-| NVAX   | 6           |
-| OTF    | 6           |
-| PBR    | 6           |
-| PNNT   | 6           |
-| QFIN   | 6           |
+| ticker | family_count | list_count | families                                                                                             | lists                                                                                                                                                                                                                                    |
+| ------ | ------------ | ---------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ETOR   | 7            | 9          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_short_squeeze, assetmgr_turnaround_value, hq_low_leverage, oversold_quality                                   |
+| FDUS   | 7            | 9          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value, oversold_quality, turnaround_value                                                                     |
+| APAM   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_short_squeeze, assetmgr_turnaround_value                                                                      |
+| ARCC   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| BBDC   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| BCSF   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| BXSL   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| CSWC   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| FDS    | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_short_squeeze, assetmgr_turnaround_value                                                                      |
+| GAIN   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| GBDC   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| GSBD   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| HASI   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_short_squeeze, assetmgr_turnaround_value                                                                      |
+| HTGC   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| KBDC   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| MAIN   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| MSDL   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| MSIF   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| NMFC   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| OBDC   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| PAX    | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_short_squeeze, assetmgr_turnaround_value                                                                      |
+| PFLT   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| SLRC   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| TCPC   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| TRIN   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | bdc_compounders, bdc_garp, bdc_hq_low_leverage, bdc_oversold_quality, bdc_quality_value, bdc_short_squeeze, bdc_turnaround_value                                                                                                         |
+| TROW   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_short_squeeze, assetmgr_turnaround_value                                                                      |
+| VCTR   | 7            | 7          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze, turnaround_value | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_short_squeeze, assetmgr_turnaround_value                                                                      |
+| DDI    | 6            | 12         | compounders, garp, hq_low_leverage, oversold_quality, quality_value, turnaround_value                | compounders, garp, hq_low_leverage, operating_compounders, operating_garp, operating_hq_low_leverage, operating_oversold_quality, operating_quality_value, operating_turnaround_value, oversold_quality, quality_value, turnaround_value |
+| AB     | 6            | 11         | compounders, garp, hq_low_leverage, oversold_quality, quality_value, turnaround_value                | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_turnaround_value, compounders, garp, hq_low_leverage, oversold_quality, quality_value                         |
+| DHIL   | 6            | 10         | compounders, garp, hq_low_leverage, oversold_quality, quality_value, turnaround_value                | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_turnaround_value, compounders, garp, hq_low_leverage, quality_value                                           |
+| NOAH   | 6            | 10         | compounders, garp, hq_low_leverage, oversold_quality, quality_value, turnaround_value                | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_turnaround_value, garp, oversold_quality, quality_value, turnaround_value                                     |
+| RWAY   | 6            | 7          | compounders, garp, oversold_quality, quality_value, short_squeeze, turnaround_value                  | assetmgr_compounders, assetmgr_garp, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_short_squeeze, assetmgr_turnaround_value, turnaround_value                                                                              |
+| XP     | 6            | 7          | compounders, garp, oversold_quality, quality_value, short_squeeze, turnaround_value                  | assetmgr_compounders, assetmgr_garp, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_short_squeeze, assetmgr_turnaround_value, turnaround_value                                                                              |
+| FUTU   | 6            | 6          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, short_squeeze                   | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_short_squeeze                                                                                                 |
+| LAZ    | 6            | 6          | compounders, garp, oversold_quality, quality_value, short_squeeze, turnaround_value                  | assetmgr_compounders, assetmgr_garp, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_short_squeeze, assetmgr_turnaround_value                                                                                                |
+| NMAI   | 6            | 6          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, turnaround_value                | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_turnaround_value                                                                                              |
+| WTW    | 6            | 6          | compounders, garp, hq_low_leverage, oversold_quality, quality_value, turnaround_value                | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_turnaround_value                                                                                              |
+| CALM   | 5            | 10         | garp, hq_low_leverage, oversold_quality, quality_value, turnaround_value                             | garp, hq_low_leverage, operating_garp, operating_hq_low_leverage, operating_oversold_quality, operating_quality_value, operating_turnaround_value, oversold_quality, quality_value, turnaround_value                                     |
+| ESEA   | 5            | 10         | compounders, garp, oversold_quality, quality_value, turnaround_value                                 | compounders, garp, operating_compounders, operating_garp, operating_oversold_quality, operating_quality_value, operating_turnaround_value, oversold_quality, quality_value, turnaround_value                                             |
+| INMD   | 5            | 10         | compounders, garp, hq_low_leverage, oversold_quality, quality_value                                  | compounders, garp, hq_low_leverage, operating_compounders, operating_garp, operating_hq_low_leverage, operating_oversold_quality, operating_quality_value, oversold_quality, quality_value                                               |
+| SIGA   | 5            | 10         | compounders, garp, hq_low_leverage, oversold_quality, quality_value                                  | compounders, garp, hq_low_leverage, operating_compounders, operating_garp, operating_hq_low_leverage, operating_oversold_quality, operating_quality_value, oversold_quality, quality_value                                               |
+| LUXE   | 5            | 9          | compounders, garp, oversold_quality, quality_value, turnaround_value                                 | compounders, garp, operating_compounders, operating_garp, operating_oversold_quality, operating_quality_value, operating_turnaround_value, quality_value, turnaround_value                                                               |
+| FHI    | 5            | 6          | compounders, garp, hq_low_leverage, oversold_quality, quality_value                                  | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_quality_value, compounders                                                                                                            |
+| NCDL   | 5            | 6          | compounders, garp, oversold_quality, quality_value, turnaround_value                                 | assetmgr_compounders, assetmgr_garp, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_turnaround_value, turnaround_value                                                                                                      |
+| SEIC   | 5            | 6          | compounders, garp, hq_low_leverage, oversold_quality, quality_value                                  | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_quality_value, hq_low_leverage                                                                                                        |
+| AMP    | 5            | 5          | compounders, garp, hq_low_leverage, quality_value, turnaround_value                                  | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_quality_value, assetmgr_turnaround_value                                                                                                                         |
+| CNS    | 5            | 5          | compounders, garp, hq_low_leverage, oversold_quality, quality_value                                  | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_quality_value                                                                                                                         |
+| MARA   | 5            | 5          | garp, oversold_quality, quality_value, short_squeeze, turnaround_value                               | assetmgr_garp, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_short_squeeze, assetmgr_turnaround_value                                                                                                                      |
+| MFIC   | 5            | 5          | compounders, garp, oversold_quality, quality_value, turnaround_value                                 | assetmgr_compounders, assetmgr_garp, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_turnaround_value                                                                                                                        |
+| OTF    | 5            | 5          | compounders, garp, hq_low_leverage, quality_value, turnaround_value                                  | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_quality_value, assetmgr_turnaround_value                                                                                                                         |
+| PNNT   | 5            | 5          | garp, oversold_quality, quality_value, short_squeeze, turnaround_value                               | assetmgr_garp, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_short_squeeze, assetmgr_turnaround_value                                                                                                                      |
+| SAR    | 5            | 5          | compounders, garp, hq_low_leverage, quality_value, turnaround_value                                  | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_quality_value, assetmgr_turnaround_value                                                                                                                         |
+| TIGR   | 5            | 5          | compounders, garp, hq_low_leverage, quality_value, turnaround_value                                  | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_quality_value, assetmgr_turnaround_value                                                                                                                         |
+| TSLX   | 5            | 5          | compounders, garp, oversold_quality, quality_value, turnaround_value                                 | assetmgr_compounders, assetmgr_garp, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_turnaround_value                                                                                                                        |
+| VIRT   | 5            | 5          | garp, oversold_quality, quality_value, short_squeeze, turnaround_value                               | assetmgr_garp, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_short_squeeze, assetmgr_turnaround_value                                                                                                                      |
+| VRTS   | 5            | 5          | compounders, garp, oversold_quality, quality_value, turnaround_value                                 | assetmgr_compounders, assetmgr_garp, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_turnaround_value                                                                                                                        |
+| WT     | 5            | 5          | compounders, garp, hq_low_leverage, quality_value, short_squeeze                                     | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_quality_value, assetmgr_short_squeeze                                                                                                                            |
+| BSM    | 4            | 8          | compounders, garp, hq_low_leverage, oversold_quality                                                 | compounders, garp, hq_low_leverage, operating_compounders, operating_garp, operating_hq_low_leverage, operating_oversold_quality, oversold_quality                                                                                       |
+| CHA    | 4            | 8          | garp, oversold_quality, quality_value, turnaround_value                                              | garp, operating_garp, operating_oversold_quality, operating_quality_value, operating_turnaround_value, oversold_quality, quality_value, turnaround_value                                                                                 |
+| CRMD   | 4            | 8          | compounders, garp, hq_low_leverage, quality_value                                                    | compounders, garp, hq_low_leverage, operating_compounders, operating_garp, operating_hq_low_leverage, operating_quality_value, quality_value                                                                                             |
+| HLF    | 4            | 8          | compounders, garp, quality_value, short_squeeze                                                      | compounders, garp, operating_compounders, operating_garp, operating_quality_value, operating_short_squeeze, quality_value, short_squeeze                                                                                                 |
+| KROS   | 4            | 8          | compounders, garp, hq_low_leverage, quality_value                                                    | compounders, garp, hq_low_leverage, operating_compounders, operating_garp, operating_hq_low_leverage, operating_quality_value, quality_value                                                                                             |
+| PTCT   | 4            | 8          | compounders, garp, hq_low_leverage, quality_value                                                    | compounders, garp, hq_low_leverage, operating_compounders, operating_garp, operating_hq_low_leverage, operating_quality_value, quality_value                                                                                             |
+| SLDE   | 4            | 8          | compounders, garp, hq_low_leverage, quality_value                                                    | compounders, garp, hq_low_leverage, operating_compounders, operating_garp, operating_hq_low_leverage, operating_quality_value, quality_value                                                                                             |
+| SLI    | 4            | 8          | compounders, garp, hq_low_leverage, quality_value                                                    | compounders, garp, hq_low_leverage, operating_compounders, operating_garp, operating_hq_low_leverage, operating_quality_value, quality_value                                                                                             |
+| YRD    | 4            | 8          | garp, oversold_quality, quality_value, turnaround_value                                              | garp, operating_garp, operating_oversold_quality, operating_quality_value, operating_turnaround_value, oversold_quality, quality_value, turnaround_value                                                                                 |
+| ALL    | 4            | 7          | garp, oversold_quality, quality_value, turnaround_value                                              | garp, operating_garp, operating_oversold_quality, operating_quality_value, operating_turnaround_value, quality_value, turnaround_value                                                                                                   |
+| SOHU   | 4            | 7          | compounders, garp, hq_low_leverage, quality_value                                                    | compounders, garp, operating_compounders, operating_garp, operating_hq_low_leverage, operating_quality_value, quality_value                                                                                                              |
+| AAMI   | 4            | 5          | compounders, garp, quality_value, turnaround_value                                                   | assetmgr_compounders, assetmgr_garp, assetmgr_quality_value, assetmgr_turnaround_value, compounders                                                                                                                                      |
+| AMG    | 4            | 4          | compounders, garp, hq_low_leverage, quality_value                                                    | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_quality_value                                                                                                                                                    |
+| BMNR   | 4            | 4          | garp, hq_low_leverage, quality_value, short_squeeze                                                  | assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_quality_value, assetmgr_short_squeeze                                                                                                                                                  |
+| BTBT   | 4            | 4          | garp, hq_low_leverage, quality_value, short_squeeze                                                  | assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_quality_value, assetmgr_short_squeeze                                                                                                                                                  |
+| CBOE   | 4            | 4          | compounders, hq_low_leverage, oversold_quality, short_squeeze                                        | assetmgr_compounders, assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_short_squeeze                                                                                                                                        |
+| CCAP   | 4            | 4          | garp, oversold_quality, quality_value, turnaround_value                                              | assetmgr_garp, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_turnaround_value                                                                                                                                              |
+| CGBD   | 4            | 4          | garp, oversold_quality, quality_value, turnaround_value                                              | assetmgr_garp, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_turnaround_value                                                                                                                                              |
+| CION   | 4            | 4          | garp, oversold_quality, quality_value, turnaround_value                                              | assetmgr_garp, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_turnaround_value                                                                                                                                              |
+| COIN   | 4            | 4          | hq_low_leverage, oversold_quality, short_squeeze, turnaround_value                                   | assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_short_squeeze, assetmgr_turnaround_value                                                                                                                                   |
+| ERIE   | 4            | 4          | hq_low_leverage, oversold_quality, short_squeeze, turnaround_value                                   | assetmgr_hq_low_leverage, assetmgr_oversold_quality, assetmgr_short_squeeze, assetmgr_turnaround_value                                                                                                                                   |
+| EVR    | 4            | 4          | compounders, garp, hq_low_leverage, quality_value                                                    | assetmgr_compounders, assetmgr_garp, assetmgr_hq_low_leverage, assetmgr_quality_value                                                                                                                                                    |
+| FSK    | 4            | 4          | garp, oversold_quality, quality_value, turnaround_value                                              | assetmgr_garp, assetmgr_oversold_quality, assetmgr_quality_value, assetmgr_turnaround_value                                                                                                                                              |

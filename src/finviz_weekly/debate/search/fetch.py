@@ -1,10 +1,6 @@
 from __future__ import annotations
 
 import json
-<<<<<<< ours
-import re
-=======
->>>>>>> theirs
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Optional
@@ -49,11 +45,7 @@ def fetch_and_extract(url: str, *, cache_dir: Path, cache_days: int, user_agent:
         with urlopen(req, timeout=10) as resp:
             html = resp.read().decode("utf-8", errors="ignore")
             text = extract_text(html)
-<<<<<<< ours
-            text = clean_excerpt(text, limit=4000)
-=======
             text = clean_excerpt(text, limit=12000)
->>>>>>> theirs
     except Exception as exc:
         LOGGER.warning("Failed to fetch %s: %s", url, exc)
 

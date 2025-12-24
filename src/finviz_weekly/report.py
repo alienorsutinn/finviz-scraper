@@ -9,6 +9,13 @@ from typing import Dict, Iterable, List, Optional, Tuple
 import pandas as pd
 
 
+def _list_family(name: str) -> str:
+    for prefix in ("operating_", "assetmgr_", "bdc_"):
+        if name.startswith(prefix):
+            return name[len(prefix) :]
+    return name
+
+
 def _md_table(rows: List[List[str]], headers: List[str]) -> str:
     if not rows:
         return "_(no rows)_\n"
@@ -48,6 +55,7 @@ def write_report(
     scored: pd.DataFrame,
     lists: Dict[str, pd.DataFrame],
     candidates_by_group: Dict[str, List[str]],
+    learned_status: Optional[Dict] = None,
 ) -> None:
     latest_dir = Path(out_dir) / "latest"
     runs_dir = Path(out_dir) / "runs" / as_of
@@ -56,6 +64,10 @@ def write_report(
 
     weights_path = latest_dir / "learned_weights.json"
     mode = _read_weights_mode(weights_path)
+    learned_status = learned_status or {}
+    learned_enabled = bool(learned_status.get("enabled", False))
+    learned_reasons = learned_status.get("reasons") or []
+    learned_reasons_text = ", ".join(str(r) for r in learned_reasons) if learned_reasons else ""
 
     # counts
     total = int(len(scored))
@@ -78,10 +90,22 @@ def write_report(
         for t in sorted(set(ticks)):
             ticker_to_lists[t].append(list_name)
 
-    repeated_2 = [(t, len(set(lsts)), sorted(set(lsts))) for t, lsts in ticker_to_lists.items() if len(set(lsts)) >= 2]
-    repeated_3 = [(t, len(set(lsts)), sorted(set(lsts))) for t, lsts in ticker_to_lists.items() if len(set(lsts)) >= 3]
-    repeated_2.sort(key=lambda x: (-x[1], x[0]))
-    repeated_3.sort(key=lambda x: (-x[1], x[0]))
+    repeated_rows = []
+    for t, lsts in ticker_to_lists.items():
+        uniq_lists = sorted(set(lsts))
+        families = sorted({_list_family(nm) for nm in uniq_lists})
+        repeated_rows.append(
+            {
+                "ticker": t,
+                "count_lists": len(uniq_lists),
+                "count_families": len(families),
+                "lists": uniq_lists,
+                "families": families,
+            }
+        )
+    repeated_rows.sort(key=lambda x: (-x["count_families"], -x["count_lists"], x["ticker"]))
+    repeated_2 = [r for r in repeated_rows if r["count_families"] >= 2]
+    repeated_3 = [r for r in repeated_rows if r["count_families"] >= 3]
 
     # sector summary
     sector_counts = _top_sector_counts(scored, n=10)
@@ -107,6 +131,11 @@ def write_report(
     md = []
     md.append(f"# Finviz Weekly Report — {as_of}\n")
     md.append(f"- Weights mode: **{mode}**\n")
+    if learned_enabled:
+        md.append("- Learned scoring: **enabled**\n")
+    else:
+        reason_text = learned_reasons_text or "disabled"
+        md.append(f"- Learned scoring: **disabled** ({reason_text})\n")
     md.append(f"- Rows (total): **{total}**\n")
     md.append(f"- Rows (__status==ok): **{ok}**\n")
 
@@ -193,15 +222,33 @@ def write_report(
     md.append("\n## Most repeated tickers\n")
     md.append("\n### Appears in 3+ lists\n")
     if repeated_3:
-        rows = [[t, str(c), ", ".join(lsts)] for t, c, lsts in repeated_3[:50]]
-        md.append(_md_table(rows, headers=["ticker", "lists_count", "lists"]))
+        rows = [
+            [
+                r["ticker"],
+                str(r["count_families"]),
+                str(r["count_lists"]),
+                ", ".join(r["families"]),
+                ", ".join(r["lists"]),
+            ]
+            for r in repeated_3[:50]
+        ]
+        md.append(_md_table(rows, headers=["ticker", "family_count", "list_count", "families", "lists"]))
     else:
         md.append("_(none)_\n")
 
     md.append("\n### Appears in 2+ lists\n")
     if repeated_2:
-        rows = [[t, str(c), ", ".join(lsts)] for t, c, lsts in repeated_2[:80]]
-        md.append(_md_table(rows, headers=["ticker", "lists_count", "lists"]))
+        rows = [
+            [
+                r["ticker"],
+                str(r["count_families"]),
+                str(r["count_lists"]),
+                ", ".join(r["families"]),
+                ", ".join(r["lists"]),
+            ]
+            for r in repeated_2[:80]
+        ]
+        md.append(_md_table(rows, headers=["ticker", "family_count", "list_count", "families", "lists"]))
     else:
         md.append("_(none)_\n")
 
@@ -239,4 +286,19 @@ def write_report_from_latest(*, out_dir: str = "data") -> None:
         if p.exists():
             candidates_by_group[key] = [t.strip().upper() for t in p.read_text().splitlines() if t.strip()]
 
-    write_report(out_dir=out_dir, as_of=as_of, scored=scored, lists=lists, candidates_by_group=candidates_by_group)
+    learned_status_path = latest / "learned_status.json"
+    learned_status: Optional[Dict] = None
+    if learned_status_path.exists():
+        try:
+            learned_status = json.loads(learned_status_path.read_text(encoding="utf-8"))
+        except Exception:
+            learned_status = None
+
+    write_report(
+        out_dir=out_dir,
+        as_of=as_of,
+        scored=scored,
+        lists=lists,
+        candidates_by_group=candidates_by_group,
+        learned_status=learned_status,
+    )

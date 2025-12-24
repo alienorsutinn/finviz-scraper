@@ -13,11 +13,7 @@ class SearchResult:
 
 
 class SearchProvider:
-<<<<<<< ours
-    def search(self, query: str, *, recency_days: int, max_results: int) -> List[SearchResult]:
-=======
     name: str = "base"
 
     def search(self, query: str, *, recency_days: int, max_results: int, timeout: int) -> List[SearchResult]:
->>>>>>> theirs
         raise NotImplementedError

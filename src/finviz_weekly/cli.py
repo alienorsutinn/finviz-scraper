@@ -70,18 +70,15 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--min-market-cap", type=float, default=300_000_000)
     parser.add_argument("--min-price", type=float, default=1.0)
     parser.add_argument("--candidates-max", type=int, default=100)
+    parser.add_argument("--use-learned", action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument("--learned-min-unique-dates", type=int, default=12)
+    parser.add_argument("--learned-min-forward-rows", type=int, default=200)
+    parser.add_argument("--watchlist-file")
+    parser.add_argument("--normalize-by", choices=["none", "sector", "industry"], default="none")
 
     # debate args
     parser.add_argument("--input", choices=["candidates", "conviction2", "tickers"], default="candidates")
     parser.add_argument("--max-tickers", type=int, default=30)
-<<<<<<< ours
-    parser.add_argument("--research", action=argparse.BooleanOptionalAction, default=False)
-    parser.add_argument("--recency-days", type=int, default=30)
-    parser.add_argument("--max-queries-per-ticker", type=int, default=20)
-    parser.add_argument("--max-results-per-query", type=int, default=3)
-    parser.add_argument("--evidence-max", type=int, default=25)
-    parser.add_argument("--cache-days", type=int, default=14)
-=======
     parser.add_argument("--research", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--recency-days", type=int, default=30)
     parser.add_argument("--max-queries-per-ticker", type=int, default=12)
@@ -93,7 +90,6 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--provider", choices=["openai", "mock"], default="openai")
     parser.add_argument("--model", help="LLM model name (default env OPENAI_MODEL or gpt-5-mini)")
     parser.add_argument("--verbose", action=argparse.BooleanOptionalAction, default=False)
->>>>>>> theirs
 
     # training args (train)
     parser.add_argument("--min-rows-per-group", type=int, default=250)
@@ -124,6 +120,11 @@ def main(argv: List[str] | None = None) -> None:
             min_market_cap=float(args.min_market_cap),
             min_price=float(args.min_price),
             candidates_max=int(args.candidates_max),
+            use_learned=bool(args.use_learned),
+            learned_min_unique_dates=int(args.learned_min_unique_dates),
+            learned_min_forward_rows=int(args.learned_min_forward_rows),
+            watchlist_file=args.watchlist_file,
+            normalize_by=args.normalize_by,
         )
         return
 
@@ -151,13 +152,11 @@ def main(argv: List[str] | None = None) -> None:
             max_results_per_query=args.max_results_per_query,
             evidence_max=args.evidence_max,
             cache_days=args.cache_days,
-<<<<<<< ours
-=======
             timeout_seconds=args.timeout_seconds,
             as_of=args.as_of,
             provider=args.provider,
             model=args.model,
->>>>>>> theirs
+            verbose=bool(args.verbose),
         )
         return
 

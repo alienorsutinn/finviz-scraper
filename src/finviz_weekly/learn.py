@@ -202,11 +202,16 @@ def train_weights(
         weights_path = latest_dir / "learned_weights.json"
         diag_path = latest_dir / "ic_diagnostics.csv"
         payload = {
+            "version": 1,
             "mode": "fallback",
             "horizon_trading_days": cfg.horizon_trading_days,
             "n_unique_dates": unique_dates,
             "n_forward_rows": 0,
+            "as_of": "",
+            "group_col": group_col,
+            "features": list(FACTOR_COLS),
             "global": {"weights": dict(FALLBACK_WEIGHTS), "ic": {}},
+            "groups": {},
             "by_group": {},
         }
         weights_path.write_text(json.dumps(payload, indent=2))
@@ -223,6 +228,12 @@ def train_weights(
 
     n_forward = int(joined["forward_return"].notna().sum())
     log.info("Forward-return rows=%d (horizon=%d trading days)", n_forward, cfg.horizon_trading_days)
+    as_of_label = ""
+    if "as_of_date" in joined.columns:
+        try:
+            as_of_label = str(max(joined["as_of_date"]))
+        except Exception:
+            as_of_label = ""
 
     weights_path = latest_dir / "learned_weights.json"
     diag_path = latest_dir / "ic_diagnostics.csv"
@@ -235,11 +246,16 @@ def train_weights(
             weights_path,
         )
         payload = {
+            "version": 1,
             "mode": "fallback",
             "horizon_trading_days": cfg.horizon_trading_days,
             "n_unique_dates": unique_dates,
             "n_forward_rows": n_forward,
+            "as_of": as_of_label,
+            "group_col": group_col,
+            "features": list(FACTOR_COLS),
             "global": {"weights": dict(FALLBACK_WEIGHTS), "ic": {}},
+            "groups": {},
             "by_group": {},
         }
         weights_path.write_text(json.dumps(payload, indent=2))
@@ -275,11 +291,16 @@ def train_weights(
         log.warning("group_col=%s not found in scored data; skipping group weights", group_col)
 
     payload = {
+        "version": 1,
         "mode": "learned",
+        "as_of": as_of_label,
+        "group_col": group_col,
+        "features": list(FACTOR_COLS),
         "horizon_trading_days": cfg.horizon_trading_days,
         "n_unique_dates": unique_dates,
         "n_forward_rows": n_forward,
         "global": {"weights": global_weights, "ic": global_ic},
+        "groups": by_group,
         "by_group": by_group,
     }
     weights_path.write_text(json.dumps(payload, indent=2))

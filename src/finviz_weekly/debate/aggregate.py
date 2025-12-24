@@ -7,11 +7,7 @@ import pandas as pd
 from .util import ensure_dir
 
 
-<<<<<<< ours
-def write_results(run_dir: Path, results: List[Dict[str, Any]]) -> None:
-=======
 def write_results(run_dir: Path, results: List[Dict[str, Any]], search_usage: dict[str, int]) -> None:
->>>>>>> theirs
     ensure_dir(run_dir)
     rows = []
     for r in results:
@@ -32,17 +28,6 @@ def write_results(run_dir: Path, results: List[Dict[str, Any]], search_usage: di
                 "decision": judge.get("decision"),
                 "conviction": judge.get("conviction"),
                 "final_score": scores.get("FinalScore"),
-<<<<<<< ours
-                "bear_fv": judge.get("bear_fv"),
-                "base_fv": judge.get("base_fv"),
-                "bull_fv": judge.get("bull_fv"),
-                "p_bear": judge.get("p_bear"),
-                "p_base": judge.get("p_base"),
-                "p_bull": judge.get("p_bull"),
-                "top_reasons": "; ".join(judge.get("top_reasons", [])) if judge.get("top_reasons") else "",
-                "top_risks": "; ".join(judge.get("top_risks", [])) if judge.get("top_risks") else "",
-                "what_changes_mind": "; ".join(judge.get("what_change", [])) if judge.get("what_change") else "",
-=======
                 "bear_fv": (judge.get("fair_values") or {}).get("bear"),
                 "base_fv": (judge.get("fair_values") or {}).get("base"),
                 "bull_fv": (judge.get("fair_values") or {}).get("bull"),
@@ -58,7 +43,6 @@ def write_results(run_dir: Path, results: List[Dict[str, Any]], search_usage: di
                 "debate_quality_score": scores.get("DebateQualityScore"),
                 "confidence_variance": r.get("confidence_variance", 0.0),
                 "evidence_count": len(r.get("evidence", [])),
->>>>>>> theirs
             }
         )
     df = pd.DataFrame(rows)
@@ -69,25 +53,14 @@ def write_results(run_dir: Path, results: List[Dict[str, Any]], search_usage: di
     watch = df[df["decision"] == "WATCH"].sort_values("final_score", ascending=False)
     avoid = df[df["decision"] == "AVOID"].sort_values("final_score", ascending=False)
     md = ["# Debate results\n"]
-<<<<<<< ours
-=======
     md.append(f"- brave_queries_used_this_run: {search_usage.get('brave', 0)}")
     md.append(f"- google_queries_used_this_run: {search_usage.get('google', 0)}\n")
     md.append(f"- BUY: {len(buys)} | WATCH: {len(watch)} | AVOID: {len(avoid)}\n")
->>>>>>> theirs
     for name, frame in [("Top BUY", buys), ("WATCH", watch), ("AVOID", avoid)]:
         md.append(f"\n## {name}\n")
         if frame.empty:
             md.append("_(none)_\n")
         else:
-<<<<<<< ours
-            md.append(frame.head(20).to_string(index=False))
-            md.append("\n")
-    # simple derived stats
-    if not df.empty:
-        md.append("\n## Most evidence-rich\n")
-        md.append(df.sort_values("conviction", ascending=False).head(10).to_string(index=False))
-=======
             md.append(frame[["ticker", "company", "final_score", "decision", "conviction"]].head(20).to_string(index=False))
             md.append("\n")
     if not df.empty:
@@ -95,5 +68,4 @@ def write_results(run_dir: Path, results: List[Dict[str, Any]], search_usage: di
         md.append(df.sort_values("confidence_variance", ascending=False).head(10).to_string(index=False))
         md.append("\n## Evidence-rich\n")
         md.append(df.sort_values("evidence_count", ascending=False).head(10).to_string(index=False))
->>>>>>> theirs
     (run_dir / "debate_report.md").write_text("\n".join(md), encoding="utf-8")

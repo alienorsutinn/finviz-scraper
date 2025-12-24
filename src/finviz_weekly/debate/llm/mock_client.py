@@ -12,30 +12,6 @@ class MockLLMClient(LLMClient):
     def __init__(self, seed: int = 42):
         random.seed(seed)
 
-<<<<<<< ours
-    def generate_json(self, prompt: str, schema_hint: str | None = None) -> Dict[str, Any]:
-        # Very lightweight mapper to return predictable structures
-        return {
-            "thesis": ["Solid outlook", "Manageable risks"],
-            "risks": ["Competition", "Macro headwinds"],
-            "evidence_ids": ["ev_001"],
-            "confidence": 65,
-            "questions": [
-                {"from": "judge", "to": "bear_analyst", "question": "What is your top risk?"},
-                {"from": "macro_specialist", "to": "valuation_analyst", "question": "How does macro affect valuation?"},
-            ],
-            "answers": [{"from": "bear_analyst", "to": "judge", "answer": "Risks remain but manageable", "evidence_ids": ["ev_001"]}],
-            "decision": "WATCH",
-            "conviction": 60,
-            "valuation": {"bear": 0.8, "base": 1.0, "bull": 1.2, "p_bear": 0.2, "p_base": 0.5, "p_bull": 0.3},
-            "top_reasons": ["Quant strong", "Valuation reasonable"],
-            "top_risks": ["Execution", "Competition"],
-            "catalysts": {"near": ["Earnings"], "long": ["Market share gains"]},
-            "what_change": ["Missed earnings"],
-            "followups": ["Check filings"],
-            "evidence": [],
-        }
-=======
     def generate_json(self, prompt: str, schema_hint: str | None = None, *, max_tokens: int = 512, temperature: float = 0.3) -> Dict[str, Any]:
         if schema_hint == "queries":
             return {"queries": ["company earnings outlook", "competitive landscape"], "why": ["baseline"], "must_find": ["guidance"]}  # type: ignore
@@ -101,4 +77,3 @@ class MockLLMClient(LLMClient):
                 "citations_used": {"packet": ["price"], "evidence": ["ev_001"]},
             }
         return {}
->>>>>>> theirs
