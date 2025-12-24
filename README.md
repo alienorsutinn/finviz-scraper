@@ -43,7 +43,18 @@ Outputs are written to:
 - `data/runs/YYYY-MM-DD/finviz_fundamentals.csv`
 - `data/runs/YYYY-MM-DD/meta.json`
 - `data/latest/finviz_fundamentals.parquet`
+- `data/runs/YYYY-MM-DD/finviz_scored.parquet` (canonical scored snapshot)
+- `data/runs/YYYY-MM-DD/finviz_scored.csv.gz` (Excel-friendly mirror of the scored snapshot)
+- `data/latest/finviz_scored.parquet`
+- `data/latest/finviz_scored.csv.gz`
 - `data/history/finviz_fundamentals_history.parquet` (append-only with `as_of_date`)
+
+## Weekly workflow
+1. Run scraping (`python -m finviz_weekly run ...`).
+2. Run screening (`python -m finviz_weekly screen --out data`). This writes `finviz_scored.parquet`/`csv.gz` plus candidates and conviction lists.
+3. Run the debate layer (optional, uses mocks by default): `python -m finviz_weekly debate --out data --input candidates --max-tickers 20 --research off`.
+   - To use Brave web search for real research, set `BRAVE_API_KEY` and pass `--research on`. Optional LLM calls use `OPENAI_API_KEY` (otherwise a deterministic mock is used).
+   - Debate outputs: `data/debate/YYYY-MM-DD/{ticker}.json`, `{ticker}_evidence.json`, `debate_results.csv`, `debate_report.md`.
 
 ## GitHub Actions
 

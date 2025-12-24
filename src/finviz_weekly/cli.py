@@ -12,6 +12,7 @@ from .pipeline import execute
 from .screen import run_screening
 from .learn import train_weights
 from .report import write_report_from_latest
+from .debate import run_debate
 
 
 LOGGER = logging.getLogger(__name__)
@@ -24,7 +25,7 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
         "command",
         nargs="?",
         default="run",
-        choices=["run", "screen", "train", "report"],
+        choices=["run", "screen", "train", "report", "debate"],
         help="Command to execute (default: run).",
     )
 
@@ -70,6 +71,16 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--min-price", type=float, default=1.0)
     parser.add_argument("--candidates-max", type=int, default=100)
 
+    # debate args
+    parser.add_argument("--input", choices=["candidates", "conviction2", "tickers"], default="candidates")
+    parser.add_argument("--max-tickers", type=int, default=30)
+    parser.add_argument("--research", action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument("--recency-days", type=int, default=30)
+    parser.add_argument("--max-queries-per-ticker", type=int, default=20)
+    parser.add_argument("--max-results-per-query", type=int, default=3)
+    parser.add_argument("--evidence-max", type=int, default=25)
+    parser.add_argument("--cache-days", type=int, default=14)
+
     # training args (train)
     parser.add_argument("--min-rows-per-group", type=int, default=250)
     parser.add_argument("--group-col", type=str, default="sector")
@@ -112,6 +123,21 @@ def main(argv: List[str] | None = None) -> None:
 
     if args.command == "report":
         write_report_from_latest(out_dir=args.out)
+        return
+
+    if args.command == "debate":
+        run_debate(
+            out_dir=args.out,
+            input_mode=args.input,
+            tickers=args.tickers,
+            max_tickers=args.max_tickers,
+            research=bool(args.research),
+            recency_days=args.recency_days,
+            max_queries_per_ticker=args.max_queries_per_ticker,
+            max_results_per_query=args.max_results_per_query,
+            evidence_max=args.evidence_max,
+            cache_days=args.cache_days,
+        )
         return
 
     # run

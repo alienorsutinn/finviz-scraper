@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
-from collections import Counter, defaultdict
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -156,6 +156,13 @@ def score_snapshot(df: pd.DataFrame) -> Tuple[pd.DataFrame, Dict[str, ScreenResu
     out["score_growth"] = growth_score
     out["score_momentum"] = momentum_score
     out["score_oversold"] = oversold_score
+    out["score_master"] = (
+        0.30 * out["score_quality"]
+        + 0.25 * out["score_value"]
+        + 0.15 * out["score_risk"]
+        + 0.15 * out["score_growth"]
+        + 0.15 * out["score_momentum"]
+    )
 
     # --- existing composites ---
     out["score_quality_value"] = 0.45 * out["score_quality"] + 0.45 * out["score_value"] + 0.10 * out["score_risk"]
@@ -338,8 +345,17 @@ def run_screening(
     scored, screens = score_snapshot(latest)
     scored = _tag_asset_type(scored)
 
+    learned = _load_learned_weights(Path(out_dir) / LATEST_DIR / LEARNED_WEIGHTS_DEFAULT)
+    if learned:
+        scored = _apply_learned_score(scored, learned)
+    else:
+        scored = scored.copy()
+        scored["score_learned"] = pd.NA
+
     scored.to_parquet(run_dir / "finviz_scored.parquet", index=False)
     scored.to_parquet(latest_dir / "finviz_scored.parquet", index=False)
+    scored.to_csv(run_dir / "finviz_scored.csv.gz", index=False, compression="gzip")
+    scored.to_csv(latest_dir / "finviz_scored.csv.gz", index=False, compression="gzip")
 
     lists: Dict[str, pd.DataFrame] = {}
     unions_operating: List[str] = []
@@ -397,16 +413,12 @@ def run_screening(
         unions_asset.extend(export_list(f"assetmgr_{key}", am, score_col))
         unions_bdc.extend(export_list(f"bdc_{key}", bd, score_col))
 
-    # Learned composite (if weights exist)
-    learned = _load_learned_weights(Path(out_dir) / LATEST_DIR / LEARNED_WEIGHTS_DEFAULT)
-    if learned:
-        scored2 = _apply_learned_score(scored, learned)
-        scored2 = _tag_asset_type(scored2)
-
-        export_list("learned", scored2, "score_learned")
-        unions_operating.extend(export_list("operating_learned", scored2[scored2["asset_type"]=="operating"].copy(), "score_learned"))
-        unions_asset.extend(export_list("assetmgr_learned", scored2[scored2["asset_type"]=="asset_manager"].copy(), "score_learned"))
-        unions_bdc.extend(export_list("bdc_learned", scored2[scored2["asset_type"]=="bdc"].copy(), "score_learned"))
+    has_learned_scores = "score_learned" in scored.columns and scored["score_learned"].notna().any()
+    if has_learned_scores:
+        export_list("learned", scored, "score_learned")
+        unions_operating.extend(export_list("operating_learned", scored[scored["asset_type"] == "operating"].copy(), "score_learned"))
+        unions_asset.extend(export_list("assetmgr_learned", scored[scored["asset_type"] == "asset_manager"].copy(), "score_learned"))
+        unions_bdc.extend(export_list("bdc_learned", scored[scored["asset_type"] == "bdc"].copy(), "score_learned"))
 
     def dedupe(xs: List[str]) -> List[str]:
         return list(dict.fromkeys([x for x in xs if x]))

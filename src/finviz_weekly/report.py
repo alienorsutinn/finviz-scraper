@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from collections import Counter, defaultdict
+from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
@@ -73,13 +73,13 @@ def write_report(
         else:
             list_to_tickers[k] = []
 
-    all_ticks = []
-    for v in list_to_tickers.values():
-        all_ticks.extend(v)
-    counts = Counter(all_ticks)
+    ticker_to_lists: Dict[str, List[str]] = defaultdict(list)
+    for list_name, ticks in list_to_tickers.items():
+        for t in sorted(set(ticks)):
+            ticker_to_lists[t].append(list_name)
 
-    repeated_2 = [(t, c) for t, c in counts.items() if c >= 2]
-    repeated_3 = [(t, c) for t, c in counts.items() if c >= 3]
+    repeated_2 = [(t, len(set(lsts)), sorted(set(lsts))) for t, lsts in ticker_to_lists.items() if len(set(lsts)) >= 2]
+    repeated_3 = [(t, len(set(lsts)), sorted(set(lsts))) for t, lsts in ticker_to_lists.items() if len(set(lsts)) >= 3]
     repeated_2.sort(key=lambda x: (-x[1], x[0]))
     repeated_3.sort(key=lambda x: (-x[1], x[0]))
 
@@ -110,15 +110,69 @@ def write_report(
     md.append(f"- Rows (total): **{total}**\n")
     md.append(f"- Rows (__status==ok): **{ok}**\n")
 
+    md.append("\n## Key artifacts\n")
+    md.append("- data/latest/finviz_fundamentals.parquet\n")
+    md.append(f"- data/runs/{as_of}/finviz_fundamentals.parquet\n")
+    md.append("- data/latest/finviz_scored.parquet\n")
+    md.append("- data/latest/finviz_scored.csv.gz\n")
+    md.append(f"- data/runs/{as_of}/finviz_scored.parquet\n")
+    md.append(f"- data/runs/{as_of}/finviz_scored.csv.gz\n")
+    md.append("- data/latest/candidates.txt\n")
+    md.append("- data/latest/conviction_2plus.csv\n")
+
     if asset_counts:
         md.append("\n## Asset type mix\n")
         rows = [[a, str(n)] for a, n in asset_counts]
         md.append(_md_table(rows, headers=["asset_type", "count"]))
 
+    if "zone_label" in scored.columns:
+        vc = scored["zone_label"].dropna().astype(str).value_counts()
+        md.append("\n## Valuation zones (count)\n")
+        rows = [[str(z), str(int(c))] for z, c in zip(vc.index.tolist(), vc.values.tolist())]
+        md.append(_md_table(rows, headers=["zone_label", "count"]))
+
     if sector_counts:
         md.append("\n## Top sectors (count)\n")
         rows = [[s, str(n)] for s, n in sector_counts]
         md.append(_md_table(rows, headers=["sector", "count"]))
+
+    md.append("\n## Top opportunities (quick scan)\n")
+    if "valuation_anchors" in scored.columns:
+        anchors = pd.to_numeric(scored["valuation_anchors"], errors="coerce").fillna(0)
+        df_top = scored[anchors >= 2].copy()
+        if not df_top.empty:
+            zone_rank_map = {"AGGRESSIVE": 0, "ADD": 1, "STARTER": 2, "WATCH": 3, "AVOID": 4}
+            if "zone_label" in df_top.columns:
+                zone_labels = df_top["zone_label"].astype(str).str.upper()
+                df_top["__zone_rank"] = zone_labels.map(zone_rank_map)
+            else:
+                df_top["__zone_rank"] = 99
+            df_top["__zone_rank"] = df_top["__zone_rank"].fillna(99)
+            if "upside_pct" in df_top.columns:
+                df_top["__upside_sort"] = pd.to_numeric(df_top["upside_pct"], errors="coerce").fillna(0.0)
+            else:
+                df_top["__upside_sort"] = 0.0
+            df_top = df_top.sort_values(["__zone_rank", "__upside_sort"], ascending=[True, False], kind="mergesort")
+
+            cols = [c for c in ["ticker", "company", "sector", "price", "wfv", "price_to_wfv", "upside_pct", "zone_label", "valuation_anchors", "score_master", "score_learned"] if c in df_top.columns]
+            rows = []
+            for _, r in df_top.head(20).iterrows():
+                row = []
+                for c in cols:
+                    v = r.get(c, "")
+                    try:
+                        if c in ("price", "wfv", "price_to_wfv", "upside_pct"):
+                            row.append(f"{float(v):,.2f}")
+                        else:
+                            row.append(str(v))
+                    except Exception:
+                        row.append(str(v))
+                rows.append(row)
+            md.append(_md_table(rows, headers=cols))
+        else:
+            md.append("_(none with >=2 anchors)_\n")
+    else:
+        md.append("_(valuation_anchors not available)_\n")
 
     md.append("\n## Screen top 10s\n")
     for name in sorted(lists.keys()):
@@ -139,15 +193,15 @@ def write_report(
     md.append("\n## Most repeated tickers\n")
     md.append("\n### Appears in 3+ lists\n")
     if repeated_3:
-        rows = [[t, str(c)] for t, c in repeated_3[:50]]
-        md.append(_md_table(rows, headers=["ticker", "lists_count"]))
+        rows = [[t, str(c), ", ".join(lsts)] for t, c, lsts in repeated_3[:50]]
+        md.append(_md_table(rows, headers=["ticker", "lists_count", "lists"]))
     else:
         md.append("_(none)_\n")
 
     md.append("\n### Appears in 2+ lists\n")
     if repeated_2:
-        rows = [[t, str(c)] for t, c in repeated_2[:80]]
-        md.append(_md_table(rows, headers=["ticker", "lists_count"]))
+        rows = [[t, str(c), ", ".join(lsts)] for t, c, lsts in repeated_2[:80]]
+        md.append(_md_table(rows, headers=["ticker", "lists_count", "lists"]))
     else:
         md.append("_(none)_\n")
 
