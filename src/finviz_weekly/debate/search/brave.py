@@ -1,20 +1,34 @@
 from __future__ import annotations
 
 import json
+<<<<<<< ours
 import time
+=======
+import logging
+from pathlib import Path
+>>>>>>> theirs
 from typing import List, Optional
 from urllib.parse import quote_plus
 from urllib.request import Request, urlopen
 
 from .base import SearchProvider, SearchResult
+<<<<<<< ours
 from ..util import load_json_if_fresh, sha_text, write_json, ensure_dir
 from pathlib import Path
 import logging
+=======
+from ..util import load_json_if_fresh, sha_text, write_json, ensure_dir, backoff_sleep
+>>>>>>> theirs
 
 LOGGER = logging.getLogger(__name__)
 
 
 class BraveSearchProvider(SearchProvider):
+<<<<<<< ours
+=======
+    name = "brave"
+
+>>>>>>> theirs
     def __init__(self, *, api_key: str, cache_dir: Path, cache_days: int = 14, user_agent: str = "finviz-weekly/1.0"):
         self.api_key = api_key
         self.cache_dir = cache_dir
@@ -22,6 +36,7 @@ class BraveSearchProvider(SearchProvider):
         self.user_agent = user_agent
         ensure_dir(self.cache_dir)
 
+<<<<<<< ours
     def _request(self, url: str) -> Optional[dict]:
         req = Request(url, headers={"X-Subscription-Token": self.api_key, "User-Agent": self.user_agent})
         backoff = 1.0
@@ -36,6 +51,20 @@ class BraveSearchProvider(SearchProvider):
         return None
 
     def search(self, query: str, *, recency_days: int, max_results: int) -> List[SearchResult]:
+=======
+    def _request(self, url: str, timeout: int) -> Optional[dict]:
+        req = Request(url, headers={"X-Subscription-Token": self.api_key, "User-Agent": self.user_agent})
+        for attempt in range(3):
+            try:
+                with urlopen(req, timeout=timeout) as resp:
+                    return json.loads(resp.read().decode("utf-8"))
+            except Exception as exc:
+                LOGGER.warning("Brave search request failed: %s", exc)
+                backoff_sleep(attempt)
+        return None
+
+    def search(self, query: str, *, recency_days: int, max_results: int, timeout: int) -> List[SearchResult]:
+>>>>>>> theirs
         qhash = sha_text(query)
         cache_path = self.cache_dir / f"{qhash}.json"
         cached = load_json_if_fresh(cache_path, max_age_days=self.cache_days)
@@ -43,7 +72,11 @@ class BraveSearchProvider(SearchProvider):
             data = cached
         else:
             url = f"https://api.search.brave.com/res/v1/web/search?q={quote_plus(query)}&count={max_results}&freshness={recency_days}d"
+<<<<<<< ours
             data = self._request(url) or {}
+=======
+            data = self._request(url, timeout=timeout) or {}
+>>>>>>> theirs
             write_json(cache_path, data)
 
         web = (data or {}).get("web") or {}

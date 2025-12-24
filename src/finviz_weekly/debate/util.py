@@ -2,6 +2,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+<<<<<<< ours
+=======
+import random
+import time
+>>>>>>> theirs
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -53,3 +58,10 @@ def clean_excerpt(text: str, limit: int = 160) -> str:
     if len(t) <= limit:
         return t
     return t[: limit - 3] + "..."
+<<<<<<< ours
+=======
+
+
+def backoff_sleep(attempt: int) -> None:
+    time.sleep(min(2.0, 0.3 * (2 ** attempt) + random.random() * 0.1))
+>>>>>>> theirs

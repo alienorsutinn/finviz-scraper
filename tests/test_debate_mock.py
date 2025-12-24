@@ -31,7 +31,11 @@ def test_debate_mock(tmp_path: Path, monkeypatch):
     (latest / "candidates.txt").write_text("TEST\n", encoding="utf-8")
     (latest / "conviction_2plus.csv").write_text("ticker\nTEST\n", encoding="utf-8")
 
+<<<<<<< ours
     run_debate(out_dir=str(data_dir), input_mode="candidates", research=False, max_tickers=5)
+=======
+    run_debate(out_dir=str(data_dir), input_mode="candidates", research=False, max_tickers=5, provider="mock", model="mock")
+>>>>>>> theirs
 
     debate_dir = data_dir / "debate"
     # ensure at least one dated folder created

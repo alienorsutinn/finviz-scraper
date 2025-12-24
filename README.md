@@ -52,8 +52,14 @@ Outputs are written to:
 ## Weekly workflow
 1. Run scraping (`python -m finviz_weekly run ...`).
 2. Run screening (`python -m finviz_weekly screen --out data`). This writes `finviz_scored.parquet`/`csv.gz` plus candidates and conviction lists.
+<<<<<<< ours
 3. Run the debate layer (optional, uses mocks by default): `python -m finviz_weekly debate --out data --input candidates --max-tickers 20 --research off`.
    - To use Brave web search for real research, set `BRAVE_API_KEY` and pass `--research on`. Optional LLM calls use `OPENAI_API_KEY` (otherwise a deterministic mock is used).
+=======
+3. Run the debate layer (research on by default, safe for Brave free tier with 12 queries/ticker):  
+   `python -m finviz_weekly debate --out data --input candidates --max-tickers 20`
+   - Env vars: `BRAVE_API_KEY` (primary search), optional `GOOGLE_CSE_API_KEY` + `GOOGLE_CSE_CX` (fallback), `OPENAI_API_KEY` and `OPENAI_MODEL` (default `gpt-5-mini`). Use `--provider mock` to force offline mode for tests.
+>>>>>>> theirs
    - Debate outputs: `data/debate/YYYY-MM-DD/{ticker}.json`, `{ticker}_evidence.json`, `debate_results.csv`, `debate_report.md`.
 
 ## GitHub Actions

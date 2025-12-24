@@ -74,12 +74,26 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     # debate args
     parser.add_argument("--input", choices=["candidates", "conviction2", "tickers"], default="candidates")
     parser.add_argument("--max-tickers", type=int, default=30)
+<<<<<<< ours
     parser.add_argument("--research", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--recency-days", type=int, default=30)
     parser.add_argument("--max-queries-per-ticker", type=int, default=20)
     parser.add_argument("--max-results-per-query", type=int, default=3)
     parser.add_argument("--evidence-max", type=int, default=25)
     parser.add_argument("--cache-days", type=int, default=14)
+=======
+    parser.add_argument("--research", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--recency-days", type=int, default=30)
+    parser.add_argument("--max-queries-per-ticker", type=int, default=12)
+    parser.add_argument("--max-results-per-query", type=int, default=3)
+    parser.add_argument("--evidence-max", type=int, default=20)
+    parser.add_argument("--cache-days", type=int, default=14)
+    parser.add_argument("--timeout-seconds", type=int, default=15)
+    parser.add_argument("--as-of")
+    parser.add_argument("--provider", choices=["openai", "mock"], default="openai")
+    parser.add_argument("--model", help="LLM model name (default env OPENAI_MODEL or gpt-5-mini)")
+    parser.add_argument("--verbose", action=argparse.BooleanOptionalAction, default=False)
+>>>>>>> theirs
 
     # training args (train)
     parser.add_argument("--min-rows-per-group", type=int, default=250)
@@ -137,6 +151,13 @@ def main(argv: List[str] | None = None) -> None:
             max_results_per_query=args.max_results_per_query,
             evidence_max=args.evidence_max,
             cache_days=args.cache_days,
+<<<<<<< ours
+=======
+            timeout_seconds=args.timeout_seconds,
+            as_of=args.as_of,
+            provider=args.provider,
+            model=args.model,
+>>>>>>> theirs
         )
         return
 

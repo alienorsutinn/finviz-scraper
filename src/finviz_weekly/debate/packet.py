@@ -39,9 +39,26 @@ def build_packet(scored: pd.DataFrame, ticker: str) -> Dict[str, Any]:
         packet[c] = row.get(c)
 
     # Common quality metrics
+<<<<<<< ours
     for c in ["p_e", "forward_p_e", "gross_margin", "oper_margin", "profit_margin", "roe", "debt_eq", "eps_growth_past_5y", "sales_growth_past_5y"]:
         if c in row:
             packet[c] = row.get(c)
+=======
+    for c in [
+        "p_e",
+        "forward_p_e",
+        "gross_margin",
+        "oper_margin",
+        "profit_margin",
+        "roe",
+        "debt_eq",
+        "eps_growth_past_5y",
+        "sales_growth_past_5y",
+        "sales_growth_qoq",
+        "eps_growth_qoq",
+    ]:
+        packet[c] = row.get(c)
+>>>>>>> theirs
 
     missing = [k for k in ["price", "wfv", "score_master"] if packet.get(k) is None]
     packet["data_quality"] = {"missing": missing}
