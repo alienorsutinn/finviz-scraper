@@ -35,7 +35,7 @@
 ## Screen top 10s
 
 
-### top50_assetmgr_compounders.csv
+### assetmgr_compounders
 
 | ticker | company                               | sector    | industry         | market_cap        | price  |
 | ------ | ------------------------------------- | --------- | ---------------- | ----------------- | ------ |
@@ -51,7 +51,7 @@
 | FUTU   | Futu Holdings Ltd ADR                 | Financial | Capital Markets  | 15,670,000,000.00 | 165.49 |
 
 
-### top50_assetmgr_garp.csv
+### assetmgr_garp
 
 | ticker | company                               | sector    | industry         | market_cap        | price  |
 | ------ | ------------------------------------- | --------- | ---------------- | ----------------- | ------ |
@@ -67,7 +67,7 @@
 | TIGR   | UP Fintech Holding Ltd ADR            | Financial | Capital Markets  | 1,550,000,000.00  | 9.03   |
 
 
-### top50_assetmgr_hq_low_leverage.csv
+### assetmgr_hq_low_leverage
 
 | ticker | company                            | sector    | industry                         | market_cap        | price  |
 | ------ | ---------------------------------- | --------- | -------------------------------- | ----------------- | ------ |
@@ -83,7 +83,7 @@
 | VALU   | Value Line, Inc                    | Financial | Financial Data & Stock Exchanges | 366,390,000.00    | 39.02  |
 
 
-### top50_assetmgr_learned.csv
+### assetmgr_learned
 
 | ticker | company                               | sector    | industry         | market_cap        | price  |
 | ------ | ------------------------------------- | --------- | ---------------- | ----------------- | ------ |
@@ -99,7 +99,7 @@
 | BBUC   | Brookfield Business Corp              | Financial | Asset Management | 3,460,000,000.00  | 36.05  |
 
 
-### top50_assetmgr_oversold_quality.csv
+### assetmgr_oversold_quality
 
 | ticker | company                              | sector    | industry          | market_cap        | price  |
 | ------ | ------------------------------------ | --------- | ----------------- | ----------------- | ------ |
@@ -115,7 +115,7 @@
 | RWAY   | Runway Growth Finance Corp           | Financial | Asset Management  | 317,260,000.00    | 8.78   |
 
 
-### top50_assetmgr_quality_value.csv
+### assetmgr_quality_value
 
 | ticker | company                               | sector    | industry         | market_cap        | price  |
 | ------ | ------------------------------------- | --------- | ---------------- | ----------------- | ------ |
@@ -131,7 +131,7 @@
 | APAM   | Artisan Partners Asset Management Inc | Financial | Asset Management | 3,380,000,000.00  | 41.83  |
 
 
-### top50_assetmgr_short_squeeze.csv
+### assetmgr_short_squeeze
 
 | ticker | company                                   | sector    | industry         | market_cap        | price |
 | ------ | ----------------------------------------- | --------- | ---------------- | ----------------- | ----- |
@@ -147,7 +147,7 @@
 | CD     | Chaince Digital Holdings Inc              | Financial | Capital Markets  | 433,890,000.00    | 6.21  |
 
 
-### top50_assetmgr_turnaround_value.csv
+### assetmgr_turnaround_value
 
 | ticker | company                              | sector    | industry         | market_cap       | price |
 | ------ | ------------------------------------ | --------- | ---------------- | ---------------- | ----- |
@@ -163,7 +163,7 @@
 | VIRT   | Virtu Financial Inc                  | Financial | Capital Markets  | 5,080,000,000.00 | 33.23 |
 
 
-### top50_bdc_compounders.csv
+### bdc_compounders
 
 | ticker | company                          | sector    | industry         | market_cap       | price |
 | ------ | -------------------------------- | --------- | ---------------- | ---------------- | ----- |
@@ -179,7 +179,7 @@
 | BXSL   | Blackstone Secured Lending Fund  | Financial | Asset Management | 6,270,000,000.00 | 27.11 |
 
 
-### top50_bdc_garp.csv
+### bdc_garp
 
 | ticker | company                            | sector    | industry         | market_cap       | price |
 | ------ | ---------------------------------- | --------- | ---------------- | ---------------- | ----- |
@@ -195,7 +195,7 @@
 | BCSF   | Bain Capital Specialty Finance Inc | Financial | Asset Management | 890,000,000.00   | 13.72 |
 
 
-### top50_bdc_hq_low_leverage.csv
+### bdc_hq_low_leverage
 
 | ticker | company                            | sector    | industry         | market_cap        | price |
 | ------ | ---------------------------------- | --------- | ---------------- | ----------------- | ----- |
@@ -211,7 +211,7 @@
 | BXSL   | Blackstone Secured Lending Fund    | Financial | Asset Management | 6,270,000,000.00  | 27.11 |
 
 
-### top50_bdc_learned.csv
+### bdc_learned
 
 | ticker | company                            | sector    | industry         | market_cap        | price |
 | ------ | ---------------------------------- | --------- | ---------------- | ----------------- | ----- |
@@ -227,7 +227,7 @@
 | HTGC   | Hercules Capital Inc               | Financial | Asset Management | 3,340,000,000.00  | 18.39 |
 
 
-### top50_bdc_oversold_quality.csv
+### bdc_oversold_quality
 
 | ticker | company                            | sector    | industry         | market_cap        | price |
 | ------ | ---------------------------------- | --------- | ---------------- | ----------------- | ----- |
@@ -243,7 +243,7 @@
 | GAIN   | Gladstone Investment Corporation   | Financial | Asset Management | 544,740,000.00    | 13.74 |
 
 
-### top50_bdc_quality_value.csv
+### bdc_quality_value
 
 | ticker | company                            | sector    | industry         | market_cap       | price |
 | ------ | ---------------------------------- | --------- | ---------------- | ---------------- | ----- |
@@ -259,7 +259,7 @@
 | KBDC   | Kayne Anderson BDC Inc             | Financial | Asset Management | 1,020,000,000.00 | 14.84 |
 
 
-### top50_bdc_short_squeeze.csv
+### bdc_short_squeeze
 
 | ticker | company                          | sector    | industry         | market_cap        | price |
 | ------ | -------------------------------- | --------- | ---------------- | ----------------- | ----- |
@@ -275,7 +275,7 @@
 | NMFC   | New Mountain Finance Corp        | Financial | Asset Management | 938,720,000.00    | 9.10  |
 
 
-### top50_bdc_turnaround_value.csv
+### bdc_turnaround_value
 
 | ticker | company                            | sector    | industry         | market_cap       | price |
 | ------ | ---------------------------------- | --------- | ---------------- | ---------------- | ----- |
@@ -291,7 +291,7 @@
 | BXSL   | Blackstone Secured Lending Fund    | Financial | Asset Management | 6,270,000,000.00 | 27.11 |
 
 
-### top50_compounders.csv
+### compounders
 
 | ticker | company                                      | sector            | industry                         | market_cap       | price  |
 | ------ | -------------------------------------------- | ----------------- | -------------------------------- | ---------------- | ------ |
@@ -307,7 +307,7 @@
 | ESEA   | Euroseas Ltd                                 | Industrials       | Marine Shipping                  | 375,480,000.00   | 53.59  |
 
 
-### top50_garp.csv
+### garp
 
 | ticker | company                           | sector                 | industry                                 | market_cap       | price |
 | ------ | --------------------------------- | ---------------------- | ---------------------------------------- | ---------------- | ----- |
@@ -323,7 +323,7 @@
 | PTCT   | PTC Therapeutics Inc              | Healthcare             | Biotechnology                            | 6,330,000,000.00 | 78.90 |
 
 
-### top50_hq_low_leverage.csv
+### hq_low_leverage
 
 | ticker | company                        | sector                 | industry                                 | market_cap        | price  |
 | ------ | ------------------------------ | ---------------------- | ---------------------------------------- | ----------------- | ------ |
@@ -339,7 +339,7 @@
 | UTHR   | United Therapeutics Corp       | Healthcare             | Drug Manufacturers - Specialty & Generic | 22,120,000,000.00 | 513.79 |
 
 
-### top50_learned.csv
+### learned
 
 | ticker | company                            | sector                 | industry                 | market_cap         | price  |
 | ------ | ---------------------------------- | ---------------------- | ------------------------ | ------------------ | ------ |
@@ -355,7 +355,7 @@
 | NEXN   | Nexxen International Ltd           | Communication Services | Advertising Agencies     | 413,550,000.00     | 6.48   |
 
 
-### top50_operating_compounders.csv
+### operating_compounders
 
 | ticker | company                                      | sector            | industry                         | market_cap       | price |
 | ------ | -------------------------------------------- | ----------------- | -------------------------------- | ---------------- | ----- |
@@ -371,7 +371,7 @@
 | LUXE   | LuxExperience B.V. ADR                       | Consumer Cyclical | Luxury Goods                     | 1,210,000,000.00 | 8.84  |
 
 
-### top50_operating_garp.csv
+### operating_garp
 
 | ticker | company                           | sector                 | industry                                 | market_cap       | price |
 | ------ | --------------------------------- | ---------------------- | ---------------------------------------- | ---------------- | ----- |
@@ -387,7 +387,7 @@
 | PTCT   | PTC Therapeutics Inc              | Healthcare             | Biotechnology                            | 6,330,000,000.00 | 78.90 |
 
 
-### top50_operating_hq_low_leverage.csv
+### operating_hq_low_leverage
 
 | ticker | company                        | sector                 | industry                                 | market_cap        | price  |
 | ------ | ------------------------------ | ---------------------- | ---------------------------------------- | ----------------- | ------ |
@@ -403,7 +403,7 @@
 | UTHR   | United Therapeutics Corp       | Healthcare             | Drug Manufacturers - Specialty & Generic | 22,120,000,000.00 | 513.79 |
 
 
-### top50_operating_learned.csv
+### operating_learned
 
 | ticker | company                            | sector                 | industry                 | market_cap         | price  |
 | ------ | ---------------------------------- | ---------------------- | ------------------------ | ------------------ | ------ |
@@ -419,7 +419,7 @@
 | NEXN   | Nexxen International Ltd           | Communication Services | Advertising Agencies     | 413,550,000.00     | 6.48   |
 
 
-### top50_operating_oversold_quality.csv
+### operating_oversold_quality
 
 | ticker | company                           | sector                 | industry                                 | market_cap         | price  |
 | ------ | --------------------------------- | ---------------------- | ---------------------------------------- | ------------------ | ------ |
@@ -435,7 +435,7 @@
 | CHA    | Chagee Holdings Ltd. ADR          | Consumer Cyclical      | Restaurants                              | 1,480,000,000.00   | 12.48  |
 
 
-### top50_operating_quality_value.csv
+### operating_quality_value
 
 | ticker | company                           | sector                 | industry                       | market_cap       | price |
 | ------ | --------------------------------- | ---------------------- | ------------------------------ | ---------------- | ----- |
@@ -451,7 +451,7 @@
 | GSL    | Global Ship Lease Inc             | Industrials            | Marine Shipping                | 1,240,000,000.00 | 34.73 |
 
 
-### top50_operating_short_squeeze.csv
+### operating_short_squeeze
 
 | ticker | company                          | sector            | industry                       | market_cap       | price |
 | ------ | -------------------------------- | ----------------- | ------------------------------ | ---------------- | ----- |
@@ -467,7 +467,7 @@
 | KYTX   | Kyverna Therapeutics Inc         | Healthcare        | Biotechnology                  | 464,460,000.00   | 8.13  |
 
 
-### top50_operating_turnaround_value.csv
+### operating_turnaround_value
 
 | ticker | company                           | sector                 | industry                       | market_cap        | price |
 | ------ | --------------------------------- | ---------------------- | ------------------------------ | ----------------- | ----- |
@@ -483,7 +483,7 @@
 | PVH    | PVH Corp                          | Consumer Cyclical      | Apparel Manufacturing          | 3,180,000,000.00  | 69.40 |
 
 
-### top50_oversold_quality.csv
+### oversold_quality
 
 | ticker | company                           | sector                 | industry                                 | market_cap         | price  |
 | ------ | --------------------------------- | ---------------------- | ---------------------------------------- | ------------------ | ------ |
@@ -499,7 +499,7 @@
 | CHA    | Chagee Holdings Ltd. ADR          | Consumer Cyclical      | Restaurants                              | 1,480,000,000.00   | 12.48  |
 
 
-### top50_quality_value.csv
+### quality_value
 
 | ticker | company                           | sector                 | industry                       | market_cap       | price |
 | ------ | --------------------------------- | ---------------------- | ------------------------------ | ---------------- | ----- |
@@ -515,7 +515,7 @@
 | GSL    | Global Ship Lease Inc             | Industrials            | Marine Shipping                | 1,240,000,000.00 | 34.73 |
 
 
-### top50_short_squeeze.csv
+### short_squeeze
 
 | ticker | company                          | sector            | industry                       | market_cap       | price |
 | ------ | -------------------------------- | ----------------- | ------------------------------ | ---------------- | ----- |
@@ -531,7 +531,7 @@
 | KYTX   | Kyverna Therapeutics Inc         | Healthcare        | Biotechnology                  | 464,460,000.00   | 8.13  |
 
 
-### top50_turnaround_value.csv
+### turnaround_value
 
 | ticker | company                           | sector                 | industry                       | market_cap        | price |
 | ------ | --------------------------------- | ---------------------- | ------------------------------ | ----------------- | ----- |
@@ -545,541 +545,29 @@
 | HAFN   | Hafnia Ltd                        | Industrials            | Marine Shipping                | 2,630,000,000.00  | 5.28  |
 | BBD    | Banco Bradesco S.A. ADR           | Financial              | Banks - Regional               | 17,270,000,000.00 | 3.27  |
 | PVH    | PVH Corp                          | Consumer Cyclical      | Apparel Manufacturing          | 3,180,000,000.00  | 69.40 |
-
-
-### top60_assetmgr_compounders.csv
-
-| ticker | company                                   | sector    | industry         | market_cap        | price  |
-| ------ | ----------------------------------------- | --------- | ---------------- | ----------------- | ------ |
-| AAMI   | Acadian Asset Management Inc              | Financial | Asset Management | 1,720,000,000.00  | 48.14  |
-| FHI    | Federated Hermes Inc                      | Financial | Asset Management | 4,150,000,000.00  | 53.57  |
-| AB     | AllianceBernstein Holding Lp              | Financial | Asset Management | 3,560,000,000.00  | 39.07  |
-| TROW   | T. Rowe Price Group Inc                   | Financial | Asset Management | 22,870,000,000.00 | 104.80 |
-| AMG    | Affiliated Managers Group Inc             | Financial | Asset Management | 8,090,000,000.00  | 287.67 |
-| APAM   | Artisan Partners Asset Management Inc     | Financial | Asset Management | 3,380,000,000.00  | 41.83  |
-| SEIC   | SEI Investments Co                        | Financial | Asset Management | 10,330,000,000.00 | 84.35  |
-| PAX    | Patria Investments Ltd                    | Financial | Asset Management | 2,500,000,000.00  | 15.68  |
-| HASI   | HA Sustainable Infrastructure Capital Inc | Financial | Asset Management | 4,190,000,000.00  | 33.24  |
-| SII    | Sprott Inc                                | Financial | Asset Management | 2,580,000,000.00  | 100.07 |
-
-
-### top60_assetmgr_garp.csv
-
-| ticker | company                               | sector    | industry         | market_cap        | price  |
-| ------ | ------------------------------------- | --------- | ---------------- | ----------------- | ------ |
-| NOAH   | Noah Holdings Ltd ADR                 | Financial | Asset Management | 625,760,000.00    | 9.63   |
-| AB     | AllianceBernstein Holding Lp          | Financial | Asset Management | 3,560,000,000.00  | 39.07  |
-| TROW   | T. Rowe Price Group Inc               | Financial | Asset Management | 22,870,000,000.00 | 104.80 |
-| VRTS   | Virtus Investment Partners Inc        | Financial | Asset Management | 1,110,000,000.00  | 164.55 |
-| APAM   | Artisan Partners Asset Management Inc | Financial | Asset Management | 3,380,000,000.00  | 41.83  |
-| FHI    | Federated Hermes Inc                  | Financial | Asset Management | 4,150,000,000.00  | 53.57  |
-| OTF    | Blue Owl Technology Finance Corp      | Financial | Asset Management | 6,550,000,000.00  | 14.00  |
-| VCTR   | Victory Capital Holdings Inc          | Financial | Asset Management | 4,170,000,000.00  | 64.22  |
-| NCDL   | Nuveen Churchill Direct Lending Corp  | Financial | Asset Management | 683,520,000.00    | 13.84  |
-| SEIC   | SEI Investments Co                    | Financial | Asset Management | 10,330,000,000.00 | 84.35  |
-
-
-### top60_assetmgr_hq_low_leverage.csv
-
-| ticker | company                               | sector    | industry         | market_cap        | price  |
-| ------ | ------------------------------------- | --------- | ---------------- | ----------------- | ------ |
-| SEIC   | SEI Investments Co                    | Financial | Asset Management | 10,330,000,000.00 | 84.35  |
-| AB     | AllianceBernstein Holding Lp          | Financial | Asset Management | 3,560,000,000.00  | 39.07  |
-| CNS    | Cohen & Steers Inc                    | Financial | Asset Management | 3,230,000,000.00  | 63.29  |
-| FHI    | Federated Hermes Inc                  | Financial | Asset Management | 4,150,000,000.00  | 53.57  |
-| SII    | Sprott Inc                            | Financial | Asset Management | 2,580,000,000.00  | 100.07 |
-| TROW   | T. Rowe Price Group Inc               | Financial | Asset Management | 22,870,000,000.00 | 104.80 |
-| HLNE   | Hamilton Lane Inc                     | Financial | Asset Management | 7,730,000,000.00  | 138.49 |
-| BAM    | Brookfield Asset Management Ltd       | Financial | Asset Management | 87,250,000,000.00 | 53.27  |
-| NOAH   | Noah Holdings Ltd ADR                 | Financial | Asset Management | 625,760,000.00    | 9.63   |
-| APAM   | Artisan Partners Asset Management Inc | Financial | Asset Management | 3,380,000,000.00  | 41.83  |
-
-
-### top60_assetmgr_learned.csv
-
-| ticker | company                               | sector    | industry         | market_cap        | price  |
-| ------ | ------------------------------------- | --------- | ---------------- | ----------------- | ------ |
-| NOAH   | Noah Holdings Ltd ADR                 | Financial | Asset Management | 625,760,000.00    | 9.63   |
-| AB     | AllianceBernstein Holding Lp          | Financial | Asset Management | 3,560,000,000.00  | 39.07  |
-| VRTS   | Virtus Investment Partners Inc        | Financial | Asset Management | 1,110,000,000.00  | 164.55 |
-| TROW   | T. Rowe Price Group Inc               | Financial | Asset Management | 22,870,000,000.00 | 104.80 |
-| NCDL   | Nuveen Churchill Direct Lending Corp  | Financial | Asset Management | 683,520,000.00    | 13.84  |
-| APAM   | Artisan Partners Asset Management Inc | Financial | Asset Management | 3,380,000,000.00  | 41.83  |
-| FHI    | Federated Hermes Inc                  | Financial | Asset Management | 4,150,000,000.00  | 53.57  |
-| VCTR   | Victory Capital Holdings Inc          | Financial | Asset Management | 4,170,000,000.00  | 64.22  |
-| OTF    | Blue Owl Technology Finance Corp      | Financial | Asset Management | 6,550,000,000.00  | 14.00  |
-| SEIC   | SEI Investments Co                    | Financial | Asset Management | 10,330,000,000.00 | 84.35  |
-
-
-### top60_assetmgr_oversold_quality.csv
-
-| ticker | company                               | sector    | industry         | market_cap        | price  |
-| ------ | ------------------------------------- | --------- | ---------------- | ----------------- | ------ |
-| AB     | AllianceBernstein Holding Lp          | Financial | Asset Management | 3,560,000,000.00  | 39.07  |
-| NOAH   | Noah Holdings Ltd ADR                 | Financial | Asset Management | 625,760,000.00    | 9.63   |
-| CNS    | Cohen & Steers Inc                    | Financial | Asset Management | 3,230,000,000.00  | 63.29  |
-| BAM    | Brookfield Asset Management Ltd       | Financial | Asset Management | 87,250,000,000.00 | 53.27  |
-| SEIC   | SEI Investments Co                    | Financial | Asset Management | 10,330,000,000.00 | 84.35  |
-| APAM   | Artisan Partners Asset Management Inc | Financial | Asset Management | 3,380,000,000.00  | 41.83  |
-| NCDL   | Nuveen Churchill Direct Lending Corp  | Financial | Asset Management | 683,520,000.00    | 13.84  |
-| TROW   | T. Rowe Price Group Inc               | Financial | Asset Management | 22,870,000,000.00 | 104.80 |
-| VCTR   | Victory Capital Holdings Inc          | Financial | Asset Management | 4,170,000,000.00  | 64.22  |
-| PAX    | Patria Investments Ltd                | Financial | Asset Management | 2,500,000,000.00  | 15.68  |
-
-
-### top60_assetmgr_quality_value.csv
-
-| ticker | company                               | sector    | industry         | market_cap        | price  |
-| ------ | ------------------------------------- | --------- | ---------------- | ----------------- | ------ |
-| NOAH   | Noah Holdings Ltd ADR                 | Financial | Asset Management | 625,760,000.00    | 9.63   |
-| VRTS   | Virtus Investment Partners Inc        | Financial | Asset Management | 1,110,000,000.00  | 164.55 |
-| AB     | AllianceBernstein Holding Lp          | Financial | Asset Management | 3,560,000,000.00  | 39.07  |
-| TROW   | T. Rowe Price Group Inc               | Financial | Asset Management | 22,870,000,000.00 | 104.80 |
-| APAM   | Artisan Partners Asset Management Inc | Financial | Asset Management | 3,380,000,000.00  | 41.83  |
-| FHI    | Federated Hermes Inc                  | Financial | Asset Management | 4,150,000,000.00  | 53.57  |
-| OTF    | Blue Owl Technology Finance Corp      | Financial | Asset Management | 6,550,000,000.00  | 14.00  |
-| NCDL   | Nuveen Churchill Direct Lending Corp  | Financial | Asset Management | 683,520,000.00    | 13.84  |
-| VCTR   | Victory Capital Holdings Inc          | Financial | Asset Management | 4,170,000,000.00  | 64.22  |
-| JHG    | Janus Henderson Group plc             | Financial | Asset Management | 7,330,000,000.00  | 47.45  |
-
-
-### top60_assetmgr_short_squeeze.csv
-
-| ticker | company                                   | sector    | industry         | market_cap        | price  |
-| ------ | ----------------------------------------- | --------- | ---------------- | ----------------- | ------ |
-| HASI   | HA Sustainable Infrastructure Capital Inc | Financial | Asset Management | 4,190,000,000.00  | 33.24  |
-| PSEC   | Prospect Capital Corp                     | Financial | Asset Management | 1,180,000,000.00  | 2.50   |
-| PAX    | Patria Investments Ltd                    | Financial | Asset Management | 2,500,000,000.00  | 15.68  |
-| BBUC   | Brookfield Business Corp                  | Financial | Asset Management | 3,460,000,000.00  | 36.05  |
-| DBRG   | DigitalBridge Group Inc                   | Financial | Asset Management | 2,460,000,000.00  | 13.03  |
-| VCTR   | Victory Capital Holdings Inc              | Financial | Asset Management | 4,170,000,000.00  | 64.22  |
-| TROW   | T. Rowe Price Group Inc                   | Financial | Asset Management | 22,870,000,000.00 | 104.80 |
-| WT     | WisdomTree Inc                            | Financial | Asset Management | 1,780,000,000.00  | 12.68  |
-| TPG    | TPG Inc                                   | Financial | Asset Management | 24,960,000,000.00 | 66.01  |
-| BEN    | Franklin Resources, Inc                   | Financial | Asset Management | 12,810,000,000.00 | 24.59  |
-
-
-### top60_assetmgr_turnaround_value.csv
-
-| ticker | company                                 | sector    | industry         | market_cap       | price  |
-| ------ | --------------------------------------- | --------- | ---------------- | ---------------- | ------ |
-| NOAH   | Noah Holdings Ltd ADR                   | Financial | Asset Management | 625,760,000.00   | 9.63   |
-| NCDL   | Nuveen Churchill Direct Lending Corp    | Financial | Asset Management | 683,520,000.00   | 13.84  |
-| FSK    | FS KKR Capital Corp                     | Financial | Asset Management | 4,090,000,000.00 | 14.59  |
-| VRTS   | Virtus Investment Partners Inc          | Financial | Asset Management | 1,110,000,000.00 | 164.55 |
-| AB     | AllianceBernstein Holding Lp            | Financial | Asset Management | 3,560,000,000.00 | 39.07  |
-| MFIC   | MidCap Financial Investment Corporation | Financial | Asset Management | 1,080,000,000.00 | 11.56  |
-| TSLX   | Sixth Street Specialty Lending Inc      | Financial | Asset Management | 2,030,000,000.00 | 21.44  |
-| PSEC   | Prospect Capital Corp                   | Financial | Asset Management | 1,180,000,000.00 | 2.50   |
-| CGBD   | Carlyle Secured Lending Inc             | Financial | Asset Management | 914,200,000.00   | 12.54  |
-| APAM   | Artisan Partners Asset Management Inc   | Financial | Asset Management | 3,380,000,000.00 | 41.83  |
-
-
-### top60_bdc_compounders.csv
-
-| ticker | company                          | sector    | industry         | market_cap       | price |
-| ------ | -------------------------------- | --------- | ---------------- | ---------------- | ----- |
-| TRIN   | Trinity Capital Inc              | Financial | Asset Management | 1,150,000,000.00 | 15.15 |
-| MAIN   | Main Street Capital Corporation  | Financial | Asset Management | 5,320,000,000.00 | 59.39 |
-| GAIN   | Gladstone Investment Corporation | Financial | Asset Management | 544,740,000.00   | 13.74 |
-| HTGC   | Hercules Capital Inc             | Financial | Asset Management | 3,340,000,000.00 | 18.39 |
-| FDUS   | Fidus Investment Corp            | Financial | Asset Management | 683,740,000.00   | 18.77 |
-| KBDC   | Kayne Anderson BDC Inc           | Financial | Asset Management | 1,020,000,000.00 | 14.84 |
-| MSIF   | MSC Income Fund Inc              | Financial | Asset Management | 631,890,000.00   | 13.47 |
-| CSWC   | Capital Southwest Corp           | Financial | Asset Management | 1,240,000,000.00 | 21.50 |
-| BXSL   | Blackstone Secured Lending Fund  | Financial | Asset Management | 6,270,000,000.00 | 27.11 |
-| GBDC   | Golub Capital BDC Inc            | Financial | Asset Management | 3,560,000,000.00 | 13.50 |
-
-
-### top60_bdc_garp.csv
-
-| ticker | company                          | sector    | industry         | market_cap       | price |
-| ------ | -------------------------------- | --------- | ---------------- | ---------------- | ----- |
-| TRIN   | Trinity Capital Inc              | Financial | Asset Management | 1,150,000,000.00 | 15.15 |
-| FDUS   | Fidus Investment Corp            | Financial | Asset Management | 683,740,000.00   | 18.77 |
-| MAIN   | Main Street Capital Corporation  | Financial | Asset Management | 5,320,000,000.00 | 59.39 |
-| HTGC   | Hercules Capital Inc             | Financial | Asset Management | 3,340,000,000.00 | 18.39 |
-| GAIN   | Gladstone Investment Corporation | Financial | Asset Management | 544,740,000.00   | 13.74 |
-| KBDC   | Kayne Anderson BDC Inc           | Financial | Asset Management | 1,020,000,000.00 | 14.84 |
-| GSBD   | Goldman Sachs BDC Inc            | Financial | Asset Management | 1,100,000,000.00 | 9.61  |
-| MSIF   | MSC Income Fund Inc              | Financial | Asset Management | 631,890,000.00   | 13.47 |
-| SLRC   | SLR Investment Corp              | Financial | Asset Management | 833,050,000.00   | 15.27 |
-| OBDC   | Blue Owl Capital Corp            | Financial | Asset Management | 6,470,000,000.00 | 12.66 |
-
-
-### top60_bdc_hq_low_leverage.csv
-
-| ticker | company                            | sector    | industry         | market_cap        | price |
-| ------ | ---------------------------------- | --------- | ---------------- | ----------------- | ----- |
-| MAIN   | Main Street Capital Corporation    | Financial | Asset Management | 5,320,000,000.00  | 59.39 |
-| FDUS   | Fidus Investment Corp              | Financial | Asset Management | 683,740,000.00    | 18.77 |
-| HTGC   | Hercules Capital Inc               | Financial | Asset Management | 3,340,000,000.00  | 18.39 |
-| KBDC   | Kayne Anderson BDC Inc             | Financial | Asset Management | 1,020,000,000.00  | 14.84 |
-| ARCC   | Ares Capital Corp                  | Financial | Asset Management | 14,250,000,000.00 | 19.91 |
-| GBDC   | Golub Capital BDC Inc              | Financial | Asset Management | 3,560,000,000.00  | 13.50 |
-| TRIN   | Trinity Capital Inc                | Financial | Asset Management | 1,150,000,000.00  | 15.15 |
-| BBDC   | Barings BDC Inc                    | Financial | Asset Management | 928,550,000.00    | 8.83  |
-| BCSF   | Bain Capital Specialty Finance Inc | Financial | Asset Management | 890,000,000.00    | 13.72 |
-| BXSL   | Blackstone Secured Lending Fund    | Financial | Asset Management | 6,270,000,000.00  | 27.11 |
-
-
-### top60_bdc_learned.csv
-
-| ticker | company                            | sector    | industry         | market_cap        | price |
-| ------ | ---------------------------------- | --------- | ---------------- | ----------------- | ----- |
-| FDUS   | Fidus Investment Corp              | Financial | Asset Management | 683,740,000.00    | 18.77 |
-| BCSF   | Bain Capital Specialty Finance Inc | Financial | Asset Management | 890,000,000.00    | 13.72 |
-| MAIN   | Main Street Capital Corporation    | Financial | Asset Management | 5,320,000,000.00  | 59.39 |
-| KBDC   | Kayne Anderson BDC Inc             | Financial | Asset Management | 1,020,000,000.00  | 14.84 |
-| BBDC   | Barings BDC Inc                    | Financial | Asset Management | 928,550,000.00    | 8.83  |
-| GSBD   | Goldman Sachs BDC Inc              | Financial | Asset Management | 1,100,000,000.00  | 9.61  |
-| SLRC   | SLR Investment Corp                | Financial | Asset Management | 833,050,000.00    | 15.27 |
-| HTGC   | Hercules Capital Inc               | Financial | Asset Management | 3,340,000,000.00  | 18.39 |
-| ARCC   | Ares Capital Corp                  | Financial | Asset Management | 14,250,000,000.00 | 19.91 |
-| GBDC   | Golub Capital BDC Inc              | Financial | Asset Management | 3,560,000,000.00  | 13.50 |
-
-
-### top60_bdc_oversold_quality.csv
-
-| ticker | company                            | sector    | industry         | market_cap        | price |
-| ------ | ---------------------------------- | --------- | ---------------- | ----------------- | ----- |
-| FDUS   | Fidus Investment Corp              | Financial | Asset Management | 683,740,000.00    | 18.77 |
-| MAIN   | Main Street Capital Corporation    | Financial | Asset Management | 5,320,000,000.00  | 59.39 |
-| KBDC   | Kayne Anderson BDC Inc             | Financial | Asset Management | 1,020,000,000.00  | 14.84 |
-| HTGC   | Hercules Capital Inc               | Financial | Asset Management | 3,340,000,000.00  | 18.39 |
-| BCSF   | Bain Capital Specialty Finance Inc | Financial | Asset Management | 890,000,000.00    | 13.72 |
-| ARCC   | Ares Capital Corp                  | Financial | Asset Management | 14,250,000,000.00 | 19.91 |
-| BXSL   | Blackstone Secured Lending Fund    | Financial | Asset Management | 6,270,000,000.00  | 27.11 |
-| GBDC   | Golub Capital BDC Inc              | Financial | Asset Management | 3,560,000,000.00  | 13.50 |
-| GAIN   | Gladstone Investment Corporation   | Financial | Asset Management | 544,740,000.00    | 13.74 |
-| BBDC   | Barings BDC Inc                    | Financial | Asset Management | 928,550,000.00    | 8.83  |
-
-
-### top60_bdc_quality_value.csv
-
-| ticker | company                            | sector    | industry         | market_cap       | price |
-| ------ | ---------------------------------- | --------- | ---------------- | ---------------- | ----- |
-| TRIN   | Trinity Capital Inc                | Financial | Asset Management | 1,150,000,000.00 | 15.15 |
-| FDUS   | Fidus Investment Corp              | Financial | Asset Management | 683,740,000.00   | 18.77 |
-| GSBD   | Goldman Sachs BDC Inc              | Financial | Asset Management | 1,100,000,000.00 | 9.61  |
-| HTGC   | Hercules Capital Inc               | Financial | Asset Management | 3,340,000,000.00 | 18.39 |
-| GAIN   | Gladstone Investment Corporation   | Financial | Asset Management | 544,740,000.00   | 13.74 |
-| SLRC   | SLR Investment Corp                | Financial | Asset Management | 833,050,000.00   | 15.27 |
-| MAIN   | Main Street Capital Corporation    | Financial | Asset Management | 5,320,000,000.00 | 59.39 |
-| BBDC   | Barings BDC Inc                    | Financial | Asset Management | 928,550,000.00   | 8.83  |
-| BCSF   | Bain Capital Specialty Finance Inc | Financial | Asset Management | 890,000,000.00   | 13.72 |
-| KBDC   | Kayne Anderson BDC Inc             | Financial | Asset Management | 1,020,000,000.00 | 14.84 |
-
-
-### top60_bdc_short_squeeze.csv
-
-| ticker | company                          | sector    | industry         | market_cap        | price |
-| ------ | -------------------------------- | --------- | ---------------- | ----------------- | ----- |
-| MAIN   | Main Street Capital Corporation  | Financial | Asset Management | 5,320,000,000.00  | 59.39 |
-| CSWC   | Capital Southwest Corp           | Financial | Asset Management | 1,240,000,000.00  | 21.50 |
-| GAIN   | Gladstone Investment Corporation | Financial | Asset Management | 544,740,000.00    | 13.74 |
-| HTGC   | Hercules Capital Inc             | Financial | Asset Management | 3,340,000,000.00  | 18.39 |
-| ARCC   | Ares Capital Corp                | Financial | Asset Management | 14,250,000,000.00 | 19.91 |
-| KBDC   | Kayne Anderson BDC Inc           | Financial | Asset Management | 1,020,000,000.00  | 14.84 |
-| GBDC   | Golub Capital BDC Inc            | Financial | Asset Management | 3,560,000,000.00  | 13.50 |
-| TRIN   | Trinity Capital Inc              | Financial | Asset Management | 1,150,000,000.00  | 15.15 |
-| NMFC   | New Mountain Finance Corp        | Financial | Asset Management | 938,720,000.00    | 9.10  |
-| OBDC   | Blue Owl Capital Corp            | Financial | Asset Management | 6,470,000,000.00  | 12.66 |
-
-
-### top60_bdc_turnaround_value.csv
-
-| ticker | company                            | sector    | industry         | market_cap       | price |
-| ------ | ---------------------------------- | --------- | ---------------- | ---------------- | ----- |
-| FDUS   | Fidus Investment Corp              | Financial | Asset Management | 683,740,000.00   | 18.77 |
-| BCSF   | Bain Capital Specialty Finance Inc | Financial | Asset Management | 890,000,000.00   | 13.72 |
-| KBDC   | Kayne Anderson BDC Inc             | Financial | Asset Management | 1,020,000,000.00 | 14.84 |
-| GSBD   | Goldman Sachs BDC Inc              | Financial | Asset Management | 1,100,000,000.00 | 9.61  |
-| NMFC   | New Mountain Finance Corp          | Financial | Asset Management | 938,720,000.00   | 9.10  |
-| BXSL   | Blackstone Secured Lending Fund    | Financial | Asset Management | 6,270,000,000.00 | 27.11 |
-| SLRC   | SLR Investment Corp                | Financial | Asset Management | 833,050,000.00   | 15.27 |
-| OBDC   | Blue Owl Capital Corp              | Financial | Asset Management | 6,470,000,000.00 | 12.66 |
-| GAIN   | Gladstone Investment Corporation   | Financial | Asset Management | 544,740,000.00   | 13.74 |
-| BBDC   | Barings BDC Inc                    | Financial | Asset Management | 928,550,000.00   | 8.83  |
-
-
-### top60_compounders.csv
-
-| ticker | company                                                | sector                 | industry                | market_cap         | price  |
-| ------ | ------------------------------------------------------ | ---------------------- | ----------------------- | ------------------ | ------ |
-| AAMI   | Acadian Asset Management Inc                           | Financial              | Asset Management        | 1,720,000,000.00   | 48.14  |
-| FHI    | Federated Hermes Inc                                   | Financial              | Asset Management        | 4,150,000,000.00   | 53.57  |
-| AB     | AllianceBernstein Holding Lp                           | Financial              | Asset Management        | 3,560,000,000.00   | 39.07  |
-| APP    | Applovin Corp                                          | Communication Services | Advertising Agencies    | 247,920,000,000.00 | 733.60 |
-| TRIN   | Trinity Capital Inc                                    | Financial              | Asset Management        | 1,150,000,000.00   | 15.15  |
-| TROW   | T. Rowe Price Group Inc                                | Financial              | Asset Management        | 22,870,000,000.00  | 104.80 |
-| AMG    | Affiliated Managers Group Inc                          | Financial              | Asset Management        | 8,090,000,000.00   | 287.67 |
-| APAM   | Artisan Partners Asset Management Inc                  | Financial              | Asset Management        | 3,380,000,000.00   | 41.83  |
-| MAIN   | Main Street Capital Corporation                        | Financial              | Asset Management        | 5,320,000,000.00   | 59.39  |
-| OMAB   | Grupo Aeroportuario del Centro Norte S.A.B de C.V. ADR | Industrials            | Airports & Air Services | 4,600,000,000.00   | 109.48 |
-
-
-### top60_garp.csv
-
-| ticker | company                               | sector                 | industry             | market_cap        | price  |
-| ------ | ------------------------------------- | ---------------------- | -------------------- | ----------------- | ------ |
-| NOAH   | Noah Holdings Ltd ADR                 | Financial              | Asset Management     | 625,760,000.00    | 9.63   |
-| CRTO   | Criteo S.A ADR                        | Communication Services | Advertising Agencies | 1,030,000,000.00  | 19.66  |
-| AB     | AllianceBernstein Holding Lp          | Financial              | Asset Management     | 3,560,000,000.00  | 39.07  |
-| TROW   | T. Rowe Price Group Inc               | Financial              | Asset Management     | 22,870,000,000.00 | 104.80 |
-| VRTS   | Virtus Investment Partners Inc        | Financial              | Asset Management     | 1,110,000,000.00  | 164.55 |
-| TRIN   | Trinity Capital Inc                   | Financial              | Asset Management     | 1,150,000,000.00  | 15.15  |
-| APAM   | Artisan Partners Asset Management Inc | Financial              | Asset Management     | 3,380,000,000.00  | 41.83  |
-| CPA    | Copa Holdings S.A                     | Industrials            | Airlines             | 5,090,000,000.00  | 123.72 |
-| CF     | CF Industries Holdings Inc            | Basic Materials        | Agricultural Inputs  | 12,080,000,000.00 | 77.43  |
-| FHI    | Federated Hermes Inc                  | Financial              | Asset Management     | 4,150,000,000.00  | 53.57  |
-
-
-### top60_hq_low_leverage.csv
-
-| ticker | company                                  | sector      | industry                | market_cap        | price  |
-| ------ | ---------------------------------------- | ----------- | ----------------------- | ----------------- | ------ |
-| SEIC   | SEI Investments Co                       | Financial   | Asset Management        | 10,330,000,000.00 | 84.35  |
-| AB     | AllianceBernstein Holding Lp             | Financial   | Asset Management        | 3,560,000,000.00  | 39.07  |
-| CNS    | Cohen & Steers Inc                       | Financial   | Asset Management        | 3,230,000,000.00  | 63.29  |
-| FHI    | Federated Hermes Inc                     | Financial   | Asset Management        | 4,150,000,000.00  | 53.57  |
-| MAIN   | Main Street Capital Corporation          | Financial   | Asset Management        | 5,320,000,000.00  | 59.39  |
-| SII    | Sprott Inc                               | Financial   | Asset Management        | 2,580,000,000.00  | 100.07 |
-| TROW   | T. Rowe Price Group Inc                  | Financial   | Asset Management        | 22,870,000,000.00 | 104.80 |
-| HLNE   | Hamilton Lane Inc                        | Financial   | Asset Management        | 7,730,000,000.00  | 138.49 |
-| BAM    | Brookfield Asset Management Ltd          | Financial   | Asset Management        | 87,250,000,000.00 | 53.27  |
-| ASR    | Grupo Aeroportuario Del Sureste S.A. ADR | Industrials | Airports & Air Services | 9,030,000,000.00  | 326.10 |
-
-
-### top60_learned.csv
-
-| ticker | company                            | sector                 | industry             | market_cap        | price  |
-| ------ | ---------------------------------- | ---------------------- | -------------------- | ----------------- | ------ |
-| NOAH   | Noah Holdings Ltd ADR              | Financial              | Asset Management     | 625,760,000.00    | 9.63   |
-| CRTO   | Criteo S.A ADR                     | Communication Services | Advertising Agencies | 1,030,000,000.00  | 19.66  |
-| AB     | AllianceBernstein Holding Lp       | Financial              | Asset Management     | 3,560,000,000.00  | 39.07  |
-| FDUS   | Fidus Investment Corp              | Financial              | Asset Management     | 683,740,000.00    | 18.77  |
-| CF     | CF Industries Holdings Inc         | Basic Materials        | Agricultural Inputs  | 12,080,000,000.00 | 77.43  |
-| VRTS   | Virtus Investment Partners Inc     | Financial              | Asset Management     | 1,110,000,000.00  | 164.55 |
-| TROW   | T. Rowe Price Group Inc            | Financial              | Asset Management     | 22,870,000,000.00 | 104.80 |
-| UAN    | CVR Partners LP                    | Basic Materials        | Agricultural Inputs  | 1,010,000,000.00  | 95.47  |
-| VC     | Visteon Corp                       | Consumer Cyclical      | Auto Parts           | 2,680,000,000.00  | 98.17  |
-| BCSF   | Bain Capital Specialty Finance Inc | Financial              | Asset Management     | 890,000,000.00    | 13.72  |
-
-
-### top60_operating_compounders.csv
-
-| ticker | company                                                | sector                 | industry                 | market_cap         | price  |
-| ------ | ------------------------------------------------------ | ---------------------- | ------------------------ | ------------------ | ------ |
-| APP    | Applovin Corp                                          | Communication Services | Advertising Agencies     | 247,920,000,000.00 | 733.60 |
-| OMAB   | Grupo Aeroportuario del Centro Norte S.A.B de C.V. ADR | Industrials            | Airports & Air Services  | 4,600,000,000.00   | 109.48 |
-| CPA    | Copa Holdings S.A                                      | Industrials            | Airlines                 | 5,090,000,000.00   | 123.72 |
-| UAN    | CVR Partners LP                                        | Basic Materials        | Agricultural Inputs      | 1,010,000,000.00   | 95.47  |
-| ANF    | Abercrombie & Fitch Co                                 | Consumer Cyclical      | Apparel Retail           | 5,720,000,000.00   | 124.72 |
-| ALSN   | Allison Transmission Holdings Inc                      | Consumer Cyclical      | Auto Parts               | 8,390,000,000.00   | 100.75 |
-| CARG   | CarGurus Inc                                           | Consumer Cyclical      | Auto & Truck Dealerships | 3,720,000,000.00   | 38.92  |
-| BKE    | Buckle, Inc                                            | Consumer Cyclical      | Apparel Retail           | 2,840,000,000.00   | 55.54  |
-| NTB    | Bank of N T Butterfield & Son Ltd                      | Financial              | Banks - Diversified      | 2,100,000,000.00   | 50.91  |
-| BAP    | Credicorp Ltd                                          | Financial              | Banks - Regional         | 22,990,000,000.00  | 289.08 |
-
-
-### top60_operating_garp.csv
-
-| ticker | company                                       | sector                 | industry             | market_cap        | price  |
-| ------ | --------------------------------------------- | ---------------------- | -------------------- | ----------------- | ------ |
-| CRTO   | Criteo S.A ADR                                | Communication Services | Advertising Agencies | 1,030,000,000.00  | 19.66  |
-| CPA    | Copa Holdings S.A                             | Industrials            | Airlines             | 5,090,000,000.00  | 123.72 |
-| CF     | CF Industries Holdings Inc                    | Basic Materials        | Agricultural Inputs  | 12,080,000,000.00 | 77.43  |
-| UAN    | CVR Partners LP                               | Basic Materials        | Agricultural Inputs  | 1,010,000,000.00  | 95.47  |
-| CASH   | Pathward Financial Inc                        | Financial              | Banks - Regional     | 1,670,000,000.00  | 74.73  |
-| BLX    | Banco Latinoamericano De Comercio Exterior SA | Financial              | Banks - Regional     | 1,540,000,000.00  | 43.97  |
-| NTB    | Bank of N T Butterfield & Son Ltd             | Financial              | Banks - Diversified  | 2,100,000,000.00  | 50.91  |
-| BHRB   | Burke & Herbert Financial Services Corp       | Financial              | Banks - Regional     | 970,840,000.00    | 64.60  |
-| ALSN   | Allison Transmission Holdings Inc             | Consumer Cyclical      | Auto Parts           | 8,390,000,000.00  | 100.75 |
-| ANF    | Abercrombie & Fitch Co                        | Consumer Cyclical      | Apparel Retail       | 5,720,000,000.00  | 124.72 |
-
-
-### top60_operating_hq_low_leverage.csv
-
-| ticker | company                                  | sector                 | industry                 | market_cap         | price    |
-| ------ | ---------------------------------------- | ---------------------- | ------------------------ | ------------------ | -------- |
-| ASR    | Grupo Aeroportuario Del Sureste S.A. ADR | Industrials            | Airports & Air Services  | 9,030,000,000.00   | 326.10   |
-| CARG   | CarGurus Inc                             | Consumer Cyclical      | Auto & Truck Dealerships | 3,720,000,000.00   | 38.92    |
-| RACE   | Ferrari N.V                              | Consumer Cyclical      | Auto Manufacturers       | 66,760,000,000.00  | 375.25   |
-| TDG    | Transdigm Group Incorporated             | Industrials            | Aerospace & Defense      | 73,310,000,000.00  | 1,301.79 |
-| GNTX   | Gentex Corp                              | Consumer Cyclical      | Auto Parts               | 5,120,000,000.00   | 23.38    |
-| LULU   | Lululemon Athletica inc                  | Consumer Cyclical      | Apparel Retail           | 26,000,000,000.00  | 212.37   |
-| TTD    | Trade Desk Inc                           | Communication Services | Advertising Agencies     | 18,030,000,000.00  | 37.29    |
-| APP    | Applovin Corp                            | Communication Services | Advertising Agencies     | 247,920,000,000.00 | 733.60   |
-| CF     | CF Industries Holdings Inc               | Basic Materials        | Agricultural Inputs      | 12,080,000,000.00  | 77.43    |
-| BKE    | Buckle, Inc                              | Consumer Cyclical      | Apparel Retail           | 2,840,000,000.00   | 55.54    |
-
-
-### top60_operating_learned.csv
-
-| ticker | company                                 | sector                 | industry              | market_cap        | price |
-| ------ | --------------------------------------- | ---------------------- | --------------------- | ----------------- | ----- |
-| CRTO   | Criteo S.A ADR                          | Communication Services | Advertising Agencies  | 1,030,000,000.00  | 19.66 |
-| CF     | CF Industries Holdings Inc              | Basic Materials        | Agricultural Inputs   | 12,080,000,000.00 | 77.43 |
-| UAN    | CVR Partners LP                         | Basic Materials        | Agricultural Inputs   | 1,010,000,000.00  | 95.47 |
-| VC     | Visteon Corp                            | Consumer Cyclical      | Auto Parts            | 2,680,000,000.00  | 98.17 |
-| BHRB   | Burke & Herbert Financial Services Corp | Financial              | Banks - Regional      | 970,840,000.00    | 64.60 |
-| GNTX   | Gentex Corp                             | Consumer Cyclical      | Auto Parts            | 5,120,000,000.00  | 23.38 |
-| GIII   | G-III Apparel Group Ltd                 | Consumer Cyclical      | Apparel Manufacturing | 1,300,000,000.00  | 30.71 |
-| BCAL   | California BanCorp                      | Financial              | Banks - Regional      | 616,390,000.00    | 19.07 |
-| CASH   | Pathward Financial Inc                  | Financial              | Banks - Regional      | 1,670,000,000.00  | 74.73 |
-| NTB    | Bank of N T Butterfield & Son Ltd       | Financial              | Banks - Diversified   | 2,100,000,000.00  | 50.91 |
-
-
-### top60_operating_oversold_quality.csv
-
-| ticker | company                      | sector                 | industry              | market_cap        | price    |
-| ------ | ---------------------------- | ---------------------- | --------------------- | ----------------- | -------- |
-| BKE    | Buckle, Inc                  | Consumer Cyclical      | Apparel Retail        | 2,840,000,000.00  | 55.54    |
-| CF     | CF Industries Holdings Inc   | Basic Materials        | Agricultural Inputs   | 12,080,000,000.00 | 77.43    |
-| CRTO   | Criteo S.A ADR               | Communication Services | Advertising Agencies  | 1,030,000,000.00  | 19.66    |
-| DORM   | Dorman Products Inc          | Consumer Cyclical      | Auto Parts            | 3,820,000,000.00  | 125.08   |
-| TDG    | Transdigm Group Incorporated | Industrials            | Aerospace & Defense   | 73,310,000,000.00 | 1,301.79 |
-| ORLY   | O'Reilly Automotive, Inc     | Consumer Cyclical      | Auto Parts            | 77,450,000,000.00 | 91.75    |
-| RACE   | Ferrari N.V                  | Consumer Cyclical      | Auto Manufacturers    | 66,760,000,000.00 | 375.25   |
-| AZO    | Autozone Inc                 | Consumer Cyclical      | Auto Parts            | 56,560,000,000.00 | 3,413.81 |
-| BCAL   | California BanCorp           | Financial              | Banks - Regional      | 616,390,000.00    | 19.07    |
-| KTB    | Kontoor Brands Inc           | Consumer Cyclical      | Apparel Manufacturing | 3,520,000,000.00  | 63.31    |
-
-
-### top60_operating_quality_value.csv
-
-| ticker | company                                       | sector                 | industry              | market_cap        | price  |
-| ------ | --------------------------------------------- | ---------------------- | --------------------- | ----------------- | ------ |
-| CRTO   | Criteo S.A ADR                                | Communication Services | Advertising Agencies  | 1,030,000,000.00  | 19.66  |
-| CPA    | Copa Holdings S.A                             | Industrials            | Airlines              | 5,090,000,000.00  | 123.72 |
-| CF     | CF Industries Holdings Inc                    | Basic Materials        | Agricultural Inputs   | 12,080,000,000.00 | 77.43  |
-| UAN    | CVR Partners LP                               | Basic Materials        | Agricultural Inputs   | 1,010,000,000.00  | 95.47  |
-| CASH   | Pathward Financial Inc                        | Financial              | Banks - Regional      | 1,670,000,000.00  | 74.73  |
-| BLX    | Banco Latinoamericano De Comercio Exterior SA | Financial              | Banks - Regional      | 1,540,000,000.00  | 43.97  |
-| BHRB   | Burke & Herbert Financial Services Corp       | Financial              | Banks - Regional      | 970,840,000.00    | 64.60  |
-| NTB    | Bank of N T Butterfield & Son Ltd             | Financial              | Banks - Diversified   | 2,100,000,000.00  | 50.91  |
-| GIII   | G-III Apparel Group Ltd                       | Consumer Cyclical      | Apparel Manufacturing | 1,300,000,000.00  | 30.71  |
-| VC     | Visteon Corp                                  | Consumer Cyclical      | Auto Parts            | 2,680,000,000.00  | 98.17  |
-
-
-### top60_operating_short_squeeze.csv
-
-| ticker | company                       | sector            | industry                 | market_cap        | price  |
-| ------ | ----------------------------- | ----------------- | ------------------------ | ----------------- | ------ |
-| SLDP   | Solid Power Inc               | Consumer Cyclical | Auto Parts               | 876,800,000.00    | 4.59   |
-| CBC    | Central Bancompany Inc        | Financial         | Banks - Regional         | 5,730,000,000.00  | 23.78  |
-| GES    | Guess Inc                     | Consumer Cyclical | Apparel Retail           | 873,540,000.00    | 16.75  |
-| BOOT   | Boot Barn Holdings Inc        | Consumer Cyclical | Apparel Retail           | 5,770,000,000.00  | 189.43 |
-| MOD    | Modine Manufacturing Co       | Consumer Cyclical | Auto Parts               | 7,210,000,000.00  | 137.03 |
-| GIII   | G-III Apparel Group Ltd       | Consumer Cyclical | Apparel Manufacturing    | 1,300,000,000.00  | 30.71  |
-| AEO    | American Eagle Outfitters Inc | Consumer Cyclical | Apparel Retail           | 4,610,000,000.00  | 27.20  |
-| BKE    | Buckle, Inc                   | Consumer Cyclical | Apparel Retail           | 2,840,000,000.00  | 55.54  |
-| CVNA   | Carvana Co                    | Consumer Cyclical | Auto & Truck Dealerships | 94,320,000,000.00 | 433.59 |
-| URBN   | Urban Outfitters, Inc         | Consumer Cyclical | Apparel Retail           | 7,190,000,000.00  | 80.12  |
-
-
-### top60_operating_turnaround_value.csv
-
-| ticker | company                                       | sector                 | industry              | market_cap        | price |
-| ------ | --------------------------------------------- | ---------------------- | --------------------- | ----------------- | ----- |
-| CRTO   | Criteo S.A ADR                                | Communication Services | Advertising Agencies  | 1,030,000,000.00  | 19.66 |
-| BBD    | Banco Bradesco S.A. ADR                       | Financial              | Banks - Regional      | 17,270,000,000.00 | 3.27  |
-| PVH    | PVH Corp                                      | Consumer Cyclical      | Apparel Manufacturing | 3,180,000,000.00  | 69.40 |
-| BLX    | Banco Latinoamericano De Comercio Exterior SA | Financial              | Banks - Regional      | 1,540,000,000.00  | 43.97 |
-| VC     | Visteon Corp                                  | Consumer Cyclical      | Auto Parts            | 2,680,000,000.00  | 98.17 |
-| MOS    | Mosaic Company                                | Basic Materials        | Agricultural Inputs   | 7,720,000,000.00  | 24.32 |
-| BHRB   | Burke & Herbert Financial Services Corp       | Financial              | Banks - Regional      | 970,840,000.00    | 64.60 |
-| CF     | CF Industries Holdings Inc                    | Basic Materials        | Agricultural Inputs   | 12,080,000,000.00 | 77.43 |
-| UAN    | CVR Partners LP                               | Basic Materials        | Agricultural Inputs   | 1,010,000,000.00  | 95.47 |
-| KTB    | Kontoor Brands Inc                            | Consumer Cyclical      | Apparel Manufacturing | 3,520,000,000.00  | 63.31 |
-
-
-### top60_oversold_quality.csv
-
-| ticker | company                         | sector                 | industry             | market_cap        | price |
-| ------ | ------------------------------- | ---------------------- | -------------------- | ----------------- | ----- |
-| AB     | AllianceBernstein Holding Lp    | Financial              | Asset Management     | 3,560,000,000.00  | 39.07 |
-| FDUS   | Fidus Investment Corp           | Financial              | Asset Management     | 683,740,000.00    | 18.77 |
-| MAIN   | Main Street Capital Corporation | Financial              | Asset Management     | 5,320,000,000.00  | 59.39 |
-| NOAH   | Noah Holdings Ltd ADR           | Financial              | Asset Management     | 625,760,000.00    | 9.63  |
-| BKE    | Buckle, Inc                     | Consumer Cyclical      | Apparel Retail       | 2,840,000,000.00  | 55.54 |
-| CF     | CF Industries Holdings Inc      | Basic Materials        | Agricultural Inputs  | 12,080,000,000.00 | 77.43 |
-| CRTO   | Criteo S.A ADR                  | Communication Services | Advertising Agencies | 1,030,000,000.00  | 19.66 |
-| CNS    | Cohen & Steers Inc              | Financial              | Asset Management     | 3,230,000,000.00  | 63.29 |
-| BAM    | Brookfield Asset Management Ltd | Financial              | Asset Management     | 87,250,000,000.00 | 53.27 |
-| KBDC   | Kayne Anderson BDC Inc          | Financial              | Asset Management     | 1,020,000,000.00  | 14.84 |
-
-
-### top60_quality_value.csv
-
-| ticker | company                        | sector                 | industry             | market_cap        | price  |
-| ------ | ------------------------------ | ---------------------- | -------------------- | ----------------- | ------ |
-| NOAH   | Noah Holdings Ltd ADR          | Financial              | Asset Management     | 625,760,000.00    | 9.63   |
-| CRTO   | Criteo S.A ADR                 | Communication Services | Advertising Agencies | 1,030,000,000.00  | 19.66  |
-| VRTS   | Virtus Investment Partners Inc | Financial              | Asset Management     | 1,110,000,000.00  | 164.55 |
-| AB     | AllianceBernstein Holding Lp   | Financial              | Asset Management     | 3,560,000,000.00  | 39.07  |
-| TROW   | T. Rowe Price Group Inc        | Financial              | Asset Management     | 22,870,000,000.00 | 104.80 |
-| CPA    | Copa Holdings S.A              | Industrials            | Airlines             | 5,090,000,000.00  | 123.72 |
-| CF     | CF Industries Holdings Inc     | Basic Materials        | Agricultural Inputs  | 12,080,000,000.00 | 77.43  |
-| TRIN   | Trinity Capital Inc            | Financial              | Asset Management     | 1,150,000,000.00  | 15.15  |
-| FDUS   | Fidus Investment Corp          | Financial              | Asset Management     | 683,740,000.00    | 18.77  |
-| UAN    | CVR Partners LP                | Basic Materials        | Agricultural Inputs  | 1,010,000,000.00  | 95.47  |
-
-
-### top60_short_squeeze.csv
-
-| ticker | company                       | sector            | industry                 | market_cap        | price  |
-| ------ | ----------------------------- | ----------------- | ------------------------ | ----------------- | ------ |
-| SLDP   | Solid Power Inc               | Consumer Cyclical | Auto Parts               | 876,800,000.00    | 4.59   |
-| CBC    | Central Bancompany Inc        | Financial         | Banks - Regional         | 5,730,000,000.00  | 23.78  |
-| GES    | Guess Inc                     | Consumer Cyclical | Apparel Retail           | 873,540,000.00    | 16.75  |
-| BOOT   | Boot Barn Holdings Inc        | Consumer Cyclical | Apparel Retail           | 5,770,000,000.00  | 189.43 |
-| MOD    | Modine Manufacturing Co       | Consumer Cyclical | Auto Parts               | 7,210,000,000.00  | 137.03 |
-| GIII   | G-III Apparel Group Ltd       | Consumer Cyclical | Apparel Manufacturing    | 1,300,000,000.00  | 30.71  |
-| AEO    | American Eagle Outfitters Inc | Consumer Cyclical | Apparel Retail           | 4,610,000,000.00  | 27.20  |
-| BKE    | Buckle, Inc                   | Consumer Cyclical | Apparel Retail           | 2,840,000,000.00  | 55.54  |
-| CVNA   | Carvana Co                    | Consumer Cyclical | Auto & Truck Dealerships | 94,320,000,000.00 | 433.59 |
-| URBN   | Urban Outfitters, Inc         | Consumer Cyclical | Apparel Retail           | 7,190,000,000.00  | 80.12  |
-
-
-### top60_turnaround_value.csv
-
-| ticker | company                                       | sector                 | industry              | market_cap        | price |
-| ------ | --------------------------------------------- | ---------------------- | --------------------- | ----------------- | ----- |
-| CRTO   | Criteo S.A ADR                                | Communication Services | Advertising Agencies  | 1,030,000,000.00  | 19.66 |
-| BBD    | Banco Bradesco S.A. ADR                       | Financial              | Banks - Regional      | 17,270,000,000.00 | 3.27  |
-| PVH    | PVH Corp                                      | Consumer Cyclical      | Apparel Manufacturing | 3,180,000,000.00  | 69.40 |
-| NOAH   | Noah Holdings Ltd ADR                         | Financial              | Asset Management      | 625,760,000.00    | 9.63  |
-| BLX    | Banco Latinoamericano De Comercio Exterior SA | Financial              | Banks - Regional      | 1,540,000,000.00  | 43.97 |
-| NCDL   | Nuveen Churchill Direct Lending Corp          | Financial              | Asset Management      | 683,520,000.00    | 13.84 |
-| FDUS   | Fidus Investment Corp                         | Financial              | Asset Management      | 683,740,000.00    | 18.77 |
-| VC     | Visteon Corp                                  | Consumer Cyclical      | Auto Parts            | 2,680,000,000.00  | 98.17 |
-| BCSF   | Bain Capital Specialty Finance Inc            | Financial              | Asset Management      | 890,000,000.00    | 13.72 |
-| MOS    | Mosaic Company                                | Basic Materials        | Agricultural Inputs   | 7,720,000,000.00  | 24.32 |
 
 
 ## Candidates
 
 
-### operating (70)
+### operating (1)
 
-`FINV, DDI, QFIN, YRD, WW, SOHU, LUXE, ESEA, LX, GSL, SIGA, WB, CALM, PTCT, DAC, INMD, SLDE, IRS, CHA, ACIC, CRMD, CDLR, HG, CRTO, EMBC, HLF, HRTG, SM, IHS, NMIH, VSTA, KROS, REPX, SBC, TK, NUS, NVAX, PBR, HRB, RIGL, GRVY, ALL, INVA, NUTX, HRMY, IGIC, SLI, TNK, PXED, YELP, CVAC, SBR, ARGX, HCM, ARM, FIZZ, BSM, NVEC, PHOE, DHT, DOCS, LOGI, TRON, RYN, ABT, RMD, ABEV, NVO, TGTX, NBIX`
-
-
-### asset_manager (20)
-
-`NOAH, DHIL, AB, RWAY, VRTS, TROW, ETOR, TIGR, FHI, APAM, NMAI, NCDL, OTF, JHG, VCTR, SAR, SEIC, VIRT, MRX, CGBD`
+`FINV`
 
 
-### bdc (10)
+### asset_manager (0)
 
-`FDUS, TRIN, SLRC, GSBD, GAIN, BBDC, BCSF, MAIN, HTGC, KBDC`
+_(none)_
 
 
-### union (100)
+### bdc (0)
 
-`FINV, DDI, QFIN, YRD, WW, SOHU, LUXE, ESEA, LX, GSL, SIGA, WB, CALM, PTCT, DAC, INMD, SLDE, IRS, CHA, ACIC, CRMD, CDLR, HG, CRTO, EMBC, HLF, HRTG, SM, IHS, NMIH, VSTA, KROS, REPX, SBC, TK, NUS, NVAX, PBR, HRB, RIGL, GRVY, ALL, INVA, NUTX, HRMY, IGIC, SLI, TNK, PXED, YELP, CVAC, SBR, ARGX, HCM, ARM, FIZZ, BSM, NVEC, PHOE, DHT, DOCS, LOGI, TRON, RYN, ABT, RMD, ABEV, NVO, TGTX, NBIX, NOAH, DHIL, AB, RWAY, VRTS, TROW, ETOR, TIGR, FHI, APAM, NMAI, NCDL, OTF, JHG, VCTR, SAR, SEIC, VIRT, MRX, CGBD, FDUS, TRIN, SLRC, GSBD, GAIN, BBDC, BCSF, MAIN, HTGC, KBDC`
+_(none)_
+
+
+### union (1)
+
+`FINV`
 
 
 ## Most repeated tickers
@@ -1089,139 +577,139 @@
 
 | ticker | lists_count |
 | ------ | ----------- |
-| AB     | 27          |
-| NOAH   | 26          |
-| FDUS   | 25          |
-| APAM   | 23          |
-| ARCC   | 23          |
-| GBDC   | 23          |
-| HTGC   | 23          |
-| KBDC   | 23          |
-| MAIN   | 23          |
-| TRIN   | 23          |
-| BBDC   | 22          |
-| BXSL   | 22          |
-| CRTO   | 22          |
-| GAIN   | 22          |
-| MSIF   | 22          |
-| SLRC   | 22          |
-| VCTR   | 22          |
-| BCSF   | 21          |
-| GSBD   | 21          |
-| HASI   | 21          |
-| MSDL   | 21          |
-| NCDL   | 21          |
-| OBDC   | 21          |
-| OTF    | 21          |
-| PAX    | 21          |
-| TROW   | 21          |
-| CSWC   | 20          |
-| FHI    | 20          |
-| SEIC   | 20          |
-| VRTS   | 20          |
-| CNS    | 19          |
-| PFLT   | 19          |
-| TSLX   | 19          |
-| AAMI   | 18          |
-| AMP    | 18          |
-| CGBD   | 18          |
-| JHG    | 18          |
-| MFIC   | 18          |
-| AMG    | 17          |
-| NMFC   | 17          |
-| BKE    | 16          |
-| FSK    | 16          |
-| BAM    | 15          |
-| WT     | 15          |
-| BLX    | 14          |
-| CCAP   | 14          |
-| CF     | 14          |
-| HLNE   | 14          |
-| UAN    | 14          |
-| VC     | 14          |
+| AB     | 12          |
+| DDI    | 12          |
+| DHIL   | 11          |
+| NOAH   | 11          |
+| CALM   | 10          |
+| ESEA   | 10          |
+| FDUS   | 10          |
+| INMD   | 10          |
+| SIGA   | 10          |
+| ETOR   | 9           |
+| LUXE   | 9           |
+| APAM   | 8           |
+| ARCC   | 8           |
+| BBDC   | 8           |
+| BCSF   | 8           |
+| BSM    | 8           |
+| BXSL   | 8           |
+| CHA    | 8           |
+| CRMD   | 8           |
+| CRTO   | 8           |
+| CSWC   | 8           |
+| GAIN   | 8           |
+| GBDC   | 8           |
+| GSBD   | 8           |
+| HASI   | 8           |
+| HLF    | 8           |
+| HTGC   | 8           |
+| KBDC   | 8           |
+| KROS   | 8           |
+| MAIN   | 8           |
+| MSDL   | 8           |
+| MSIF   | 8           |
+| NMFC   | 8           |
+| OBDC   | 8           |
+| PAX    | 8           |
+| PFLT   | 8           |
+| PTCT   | 8           |
+| SLDE   | 8           |
+| SLI    | 8           |
+| SLRC   | 8           |
+| TCPC   | 8           |
+| TRIN   | 8           |
+| YRD    | 8           |
+| ALL    | 7           |
+| FDS    | 7           |
+| FHI    | 7           |
+| NCDL   | 7           |
+| NMAI   | 7           |
+| RWAY   | 7           |
+| SOHU   | 7           |
 
 
 ### Appears in 2+ lists
 
 | ticker | lists_count |
 | ------ | ----------- |
-| AB     | 27          |
-| NOAH   | 26          |
-| FDUS   | 25          |
-| APAM   | 23          |
-| ARCC   | 23          |
-| GBDC   | 23          |
-| HTGC   | 23          |
-| KBDC   | 23          |
-| MAIN   | 23          |
-| TRIN   | 23          |
-| BBDC   | 22          |
-| BXSL   | 22          |
-| CRTO   | 22          |
-| GAIN   | 22          |
-| MSIF   | 22          |
-| SLRC   | 22          |
-| VCTR   | 22          |
-| BCSF   | 21          |
-| GSBD   | 21          |
-| HASI   | 21          |
-| MSDL   | 21          |
-| NCDL   | 21          |
-| OBDC   | 21          |
-| OTF    | 21          |
-| PAX    | 21          |
-| TROW   | 21          |
-| CSWC   | 20          |
-| FHI    | 20          |
-| SEIC   | 20          |
-| VRTS   | 20          |
-| CNS    | 19          |
-| PFLT   | 19          |
-| TSLX   | 19          |
-| AAMI   | 18          |
-| AMP    | 18          |
-| CGBD   | 18          |
-| JHG    | 18          |
-| MFIC   | 18          |
-| AMG    | 17          |
-| NMFC   | 17          |
-| BKE    | 16          |
-| FSK    | 16          |
-| BAM    | 15          |
-| WT     | 15          |
-| BLX    | 14          |
-| CCAP   | 14          |
-| CF     | 14          |
-| HLNE   | 14          |
-| UAN    | 14          |
-| VC     | 14          |
-| BCAL   | 13          |
-| BLK    | 13          |
-| PSEC   | 13          |
-| RJF    | 13          |
-| BHRB   | 12          |
-| CASH   | 12          |
+| AB     | 12          |
 | DDI    | 12          |
-| GIII   | 12          |
-| GNTX   | 12          |
-| NTB    | 12          |
-| PFG    | 12          |
-| PVH    | 12          |
-| SII    | 12          |
-| VINP   | 12          |
-| BBUC   | 11          |
 | DHIL   | 11          |
-| DORM   | 11          |
-| GCMG   | 11          |
-| APO    | 10          |
-| BBD    | 10          |
-| BEN    | 10          |
+| NOAH   | 11          |
 | CALM   | 10          |
-| CHCO   | 10          |
-| CIB    | 10          |
-| CPA    | 10          |
-| CRBG   | 10          |
-| DBRG   | 10          |
 | ESEA   | 10          |
+| FDUS   | 10          |
 | INMD   | 10          |
-| OCSL   | 10          |
+| SIGA   | 10          |
+| ETOR   | 9           |
+| LUXE   | 9           |
+| APAM   | 8           |
+| ARCC   | 8           |
+| BBDC   | 8           |
+| BCSF   | 8           |
+| BSM    | 8           |
+| BXSL   | 8           |
+| CHA    | 8           |
+| CRMD   | 8           |
+| CRTO   | 8           |
+| CSWC   | 8           |
+| GAIN   | 8           |
+| GBDC   | 8           |
+| GSBD   | 8           |
+| HASI   | 8           |
+| HLF    | 8           |
+| HTGC   | 8           |
+| KBDC   | 8           |
+| KROS   | 8           |
+| MAIN   | 8           |
+| MSDL   | 8           |
+| MSIF   | 8           |
+| NMFC   | 8           |
+| OBDC   | 8           |
+| PAX    | 8           |
+| PFLT   | 8           |
+| PTCT   | 8           |
+| SLDE   | 8           |
+| SLI    | 8           |
+| SLRC   | 8           |
+| TCPC   | 8           |
+| TRIN   | 8           |
+| YRD    | 8           |
+| ALL    | 7           |
+| FDS    | 7           |
+| FHI    | 7           |
+| NCDL   | 7           |
+| NMAI   | 7           |
+| RWAY   | 7           |
+| SOHU   | 7           |
+| TROW   | 7           |
+| VCTR   | 7           |
+| XP     | 7           |
+| AAMI   | 6           |
+| ACIC   | 6           |
+| AMP    | 6           |
+| CNS    | 6           |
+| CPRX   | 6           |
+| CTMX   | 6           |
+| DAC    | 6           |
+| EMBC   | 6           |
+| FUTU   | 6           |
+| GSL    | 6           |
+| HG     | 6           |
+| HRB    | 6           |
+| HRMY   | 6           |
+| HRTG   | 6           |
+| IHS    | 6           |
+| INCY   | 6           |
+| INVA   | 6           |
+| IRS    | 6           |
+| LAZ    | 6           |
+| MFIC   | 6           |
+| NMIH   | 6           |
+| NUTX   | 6           |
+| NVAX   | 6           |
+| OTF    | 6           |
+| PBR    | 6           |
+| PNNT   | 6           |
+| QFIN   | 6           |
