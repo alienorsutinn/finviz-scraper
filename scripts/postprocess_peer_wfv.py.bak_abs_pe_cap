@@ -194,12 +194,6 @@ def main():
     
     # Start with EPS; drop tiny EPS that makes ratios meaningless
     df['eps_for_wfv'] = df[eps_col]
-    # Guardrail: if implied P/E is extremely low, EPS is likely noisy (one-offs/cycle). Cap it.
-    PE_MIN_ABS_FOR_WFV = 6.0
-    pe_abs = (df[price_col] / df['eps_for_wfv']).replace([float('inf'), -float('inf')], float('nan'))
-    abs_cap = pe_abs.notna() & (pe_abs < PE_MIN_ABS_FOR_WFV) & df[price_col].notna() & df['eps_for_wfv'].notna()
-    df.loc[abs_cap, 'eps_for_wfv'] = df.loc[abs_cap, price_col] / PE_MIN_ABS_FOR_WFV
-    df['eps_low_pe_capped'] = abs_cap
     df.loc[df['eps_for_wfv'] < MIN_EPS_FOR_WFV, 'eps_for_wfv'] = float('nan')
     
     PE_FLOOR_FOR_EPS = 8.0  # forced override (prevents 8x+ 'floor-driven' upside)

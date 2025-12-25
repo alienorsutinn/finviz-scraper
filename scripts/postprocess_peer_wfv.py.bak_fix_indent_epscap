@@ -182,10 +182,8 @@ def main():
     pos_n = df.groupby(list(_grp_cols))[eps_col].transform(lambda s: (s > 0).sum())
 
     # [removed group EPS cap] eps_cap = df.groupby(list(_grp_cols))[eps_col].transform(
-        # [removed group EPS cap] lambda s: (s[s > 0].quantile(0.90) if (s > 0).sum() >= MIN_POS_EPS_N else float('inf'))
-    # [removed group EPS cap] )
-    # eps_cap removed (no group EPS cap). Keep a debug column but set to +inf
-    eps_cap = pd.Series(float('inf'), index=df.index)
+        lambda s: (s[s > 0].quantile(0.90) if (s > 0).sum() >= MIN_POS_EPS_N else float('inf'))
+    )
     df['eps_cap_peer'] = eps_cap
     # --- EPS guardrails for peer WFV ---
     PE_FLOOR_FOR_EPS = 4.0
@@ -194,29 +192,12 @@ def main():
     
     # Start with EPS; drop tiny EPS that makes ratios meaningless
     df['eps_for_wfv'] = df[eps_col]
-    # Guardrail: if implied P/E is extremely low, EPS is likely noisy (one-offs/cycle). Cap it.
-    PE_MIN_ABS_FOR_WFV = 6.0
-    pe_abs = (df[price_col] / df['eps_for_wfv']).replace([float('inf'), -float('inf')], float('nan'))
-    abs_cap = pe_abs.notna() & (pe_abs < PE_MIN_ABS_FOR_WFV) & df[price_col].notna() & df['eps_for_wfv'].notna()
-    df.loc[abs_cap, 'eps_for_wfv'] = df.loc[abs_cap, price_col] / PE_MIN_ABS_FOR_WFV
-    df['eps_low_pe_capped'] = abs_cap
     df.loc[df['eps_for_wfv'] < MIN_EPS_FOR_WFV, 'eps_for_wfv'] = float('nan')
     
-    PE_FLOOR_FOR_EPS = 8.0  # forced override (prevents 8x+ 'floor-driven' upside)
-    
-    # Cap EPS only when implied P/E is below the floor AND EPS is a peer outlier (prevents floor dominating ranking)
+    # Cap EPS only when implied P/E is below the floor (EPS is implausibly large vs price)
     pe_calc = (df[price_col] / df['eps_for_wfv']).replace([float('inf'), -float('inf')], float('nan'))
-    
-    # Peer outlier test: compare EPS to p90 within industry/sector (only if enough positive EPS names)
-    MIN_POS_EPS_N = 10
-    eps_p90_ind = df.groupby('industry')[eps_col].transform(lambda s: (s[s>0].quantile(0.90) if (s>0).sum() >= MIN_POS_EPS_N else float('inf')))
-    eps_p90_sec = df.groupby('sector')[eps_col].transform(lambda s: (s[s>0].quantile(0.90) if (s>0).sum() >= MIN_POS_EPS_N else float('inf')))
-    peer_is_industry = df.get('peer_level', 'industry').eq('industry')
-    eps_p90_peer = eps_p90_ind.where(peer_is_industry, eps_p90_sec)
-    
-    needs_cap = pe_calc.notna() & (pe_calc < PE_FLOOR_FOR_EPS) & df[price_col].notna() & (df[eps_col] > eps_p90_peer)
+    needs_cap = pe_calc.notna() & (pe_calc < PE_FLOOR_FOR_EPS) & df[price_col].notna()
     df.loc[needs_cap, 'eps_for_wfv'] = df.loc[needs_cap, price_col] / PE_FLOOR_FOR_EPS
-    df['eps_floored'] = needs_cap
     # Global safety cap for EPS (prevents single bad parse dominating upside)
     _gcap = df.loc[df[eps_col] > 0, eps_col].quantile(0.995)
     df['eps_for_wfv'] = df['eps_for_wfv'].clip(upper=_gcap)
@@ -301,8 +282,6 @@ def main():
     df["fair_bull_peer"] = fair_bull.where(~is_excluded)
 
     df["peer_pe_used"] = peer_pe.where(~is_excluded)
-    # Guardrail: cap extreme peer multiples (keeps screen sane)
-    df['peer_pe_used'] = df['peer_pe_used'].clip(lower=4.0, upper=40.0)
     df["peer_level"] = peer_level.where(~is_excluded)
     df["peer_n_industry"] = ind_n.where(~is_excluded)
     df["peer_n_sector"] = sec_n.where(~is_excluded)

@@ -59,26 +59,6 @@ def main():
 
     df = pd.read_parquet(inp)
 
-    # Normalize column names (strip + standardize sector/industry)
-    df.columns = [str(c).strip() for c in df.columns]
-    rename_map = {}
-
-    # Standardize Sector/Industry -> sector/industry (case-insensitive)
-    if "sector" not in df.columns:
-        for c in df.columns:
-            if str(c).lower() == "sector":
-                rename_map[c] = "sector"
-                break
-
-    if "industry" not in df.columns:
-        for c in df.columns:
-            if str(c).lower() == "industry":
-                rename_map[c] = "industry"
-                break
-
-    if rename_map:
-        df = df.rename(columns=rename_map)
-
     price_col = pick_col(df, ["price", "close", "last"])
     eps_col = pick_col(df, ["eps_(ttm)", "eps_ttm", "eps", "raw__eps_(ttm)"])
     sector_col = pick_col(df, ["sector"])
@@ -176,124 +156,15 @@ def main():
     if not _grp_cols:
         raise KeyError(f"No sector/industry columns found. Available columns: {list(df.columns)}")
 
-    _grp_cols = tuple([c for c in _grp_cols if c in df.columns])
-    if not _grp_cols:
-        raise KeyError(f"No sector/industry columns found. Available columns: {list(df.columns)}")
-    pos_n = df.groupby(list(_grp_cols))[eps_col].transform(lambda s: (s > 0).sum())
+    pos_n = df.groupby(_grp_cols)[eps_col].transform(lambda s: (s > 0).sum())
 
-    # [removed group EPS cap] eps_cap = df.groupby(list(_grp_cols))[eps_col].transform(
-        # [removed group EPS cap] lambda s: (s[s > 0].quantile(0.90) if (s > 0).sum() >= MIN_POS_EPS_N else float('inf'))
-    # [removed group EPS cap] )
-    # eps_cap removed (no group EPS cap). Keep a debug column but set to +inf
-    eps_cap = pd.Series(float('inf'), index=df.index)
+    eps_cap = df.groupby(_grp_cols)[eps_col].transform(
+        lambda s: (s[s > 0].quantile(0.90) if (s > 0).sum() >= MIN_POS_EPS_N else float('inf'))
+    )
     df['eps_cap_peer'] = eps_cap
-    # --- EPS guardrails for peer WFV ---
-    PE_FLOOR_FOR_EPS = 4.0
-    MIN_EPS_FOR_WFV = 0.20
-    price_col = 'price'
-    
-    # Start with EPS; drop tiny EPS that makes ratios meaningless
-    df['eps_for_wfv'] = df[eps_col]
-    # Guardrail: if implied P/E is extremely low, EPS is likely noisy (one-offs/cycle). Cap it.
-    PE_MIN_ABS_FOR_WFV = 6.0
-    pe_abs = (df[price_col] / df['eps_for_wfv']).replace([float('inf'), -float('inf')], float('nan'))
-    abs_cap = pe_abs.notna() & (pe_abs < PE_MIN_ABS_FOR_WFV) & df[price_col].notna() & df['eps_for_wfv'].notna()
-    df.loc[abs_cap, 'eps_for_wfv'] = df.loc[abs_cap, price_col] / PE_MIN_ABS_FOR_WFV
-    df['eps_low_pe_capped'] = abs_cap
-    df.loc[df['eps_for_wfv'] < MIN_EPS_FOR_WFV, 'eps_for_wfv'] = float('nan')
-    
-    PE_FLOOR_FOR_EPS = 8.0  # forced override (prevents 8x+ 'floor-driven' upside)
-    
-    # Cap EPS only when implied P/E is below the floor AND EPS is a peer outlier (prevents floor dominating ranking)
-    pe_calc = (df[price_col] / df['eps_for_wfv']).replace([float('inf'), -float('inf')], float('nan'))
-    
-    # Peer outlier test: compare EPS to p90 within industry/sector (only if enough positive EPS names)
-    MIN_POS_EPS_N = 10
-    eps_p90_ind = df.groupby('industry')[eps_col].transform(lambda s: (s[s>0].quantile(0.90) if (s>0).sum() >= MIN_POS_EPS_N else float('inf')))
-    eps_p90_sec = df.groupby('sector')[eps_col].transform(lambda s: (s[s>0].quantile(0.90) if (s>0).sum() >= MIN_POS_EPS_N else float('inf')))
-    peer_is_industry = df.get('peer_level', 'industry').eq('industry')
-    eps_p90_peer = eps_p90_ind.where(peer_is_industry, eps_p90_sec)
-    
-    needs_cap = pe_calc.notna() & (pe_calc < PE_FLOOR_FOR_EPS) & df[price_col].notna() & (df[eps_col] > eps_p90_peer)
-    df.loc[needs_cap, 'eps_for_wfv'] = df.loc[needs_cap, price_col] / PE_FLOOR_FOR_EPS
-    df['eps_floored'] = needs_cap
-    # Global safety cap for EPS (prevents single bad parse dominating upside)
-    _gcap = df.loc[df[eps_col] > 0, eps_col].quantile(0.995)
-    df['eps_for_wfv'] = df['eps_for_wfv'].clip(upper=_gcap)
+    df['eps_for_wfv'] = df[eps_col].clip(upper=eps_cap)
 
-    # --- PE-ratio WFV hardening (scale-safe) ---
-    # Robust group cols (ensure they exist and are valid columns)
-    if "_grp_cols" not in locals():
-        cand = []
-        for _nm in ("sector_col","industry_col"):
-            if _nm in locals() and isinstance(locals()[_nm], str):
-                cand.append(locals()[_nm])
-        cand += ["sector","industry"]
-        _grp_cols = tuple(dict.fromkeys([c for c in cand if c in df.columns]))
-        if not _grp_cols:
-            _grp_cols = ("sector",) if "sector" in df.columns else ("ticker",)
-
-    # EPS sanity (avoid tiny/meaningless EPS making PE nonsense)
-    MIN_EPS = 0.20
-    ok_eps = df[eps_col].notna() & (df[eps_col] >= MIN_EPS)
-
-    # PE guardrails: ignore absurd PEs (one-offs / bad data)
-    MIN_PE = 3.0
-    MAX_PE = 60.0
-
-    # Compute pe_calc if missing; force NaN where EPS is not OK
-    if "pe_calc" not in df.columns:
-        df["pe_calc"] = (price / df[eps_col].replace(0, float("nan"))).where(ok_eps)
-    else:
-        df["pe_calc"] = df["pe_calc"].where(ok_eps)
-
-    ok_pe = df["pe_calc"].notna() & (df["pe_calc"] >= MIN_PE) & (df["pe_calc"] <= MAX_PE)
-
-    # Winsorize PE by peer group (only positive PEs). Fallback to MIN/MAX if group too thin.
-    MIN_POS_PE_N = 10
-    # Group key aligned to peer_level (sector vs industry)
-    grp_key = np.where(
-        df.get('peer_level', '').astype(str).str.lower().eq('industry'),
-        'industry:' + df['industry'].astype(str),
-        'sector:' + df['sector'].astype(str),
-    )
-
-    pe_lo = df.groupby(grp_key)["pe_calc"].transform(
-        lambda s: s[s > 0].quantile(0.10) if (s > 0).sum() >= MIN_POS_PE_N else float("nan")
-    )
-    pe_hi = df.groupby(grp_key)["pe_calc"].transform(
-        lambda s: s[s > 0].quantile(0.90) if (s > 0).sum() >= MIN_POS_PE_N else float("nan")
-    )
-
-    pe_lo = pe_lo.fillna(MIN_PE).clip(lower=MIN_PE)
-    pe_hi = pe_hi.fillna(MAX_PE).clip(upper=MAX_PE)
-
-    df["pe_for_wfv"] = df["pe_calc"].clip(lower=pe_lo, upper=pe_hi)
-
-    # Scale-safe fair value from PE ratio (avoids EPS magnitude artifacts)
-    wfv = price * (df["peer_pe_used"] / df["pe_for_wfv"].replace(0, float("nan")))
-
-    # Final gating
-    wfv = wfv.where(ok_eps & ok_pe)
-
-    # Canonical peer WFV (compute first; gate later if needed)
-    df['wfv_peer'] = df['eps_for_wfv'] * df['peer_pe_used']
-
-    # EPS validity mask for PE-based valuation (avoid 0.01 EPS artifacts)
-    MIN_EPS = 0.20  # tune later
-    ok_eps = df[eps_col].notna() & (df[eps_col] >= MIN_EPS)
-    MIN_POS_EPS_N = 10  # require enough positive-EPS peers for reliable caps
-    ok_eps = ok_eps & (pos_n >= MIN_POS_EPS_N)
-
-    # Eligibility for peer WFV (do NOT exclude floored/capped PEs; those are handled via eps_for_wfv/pe_for_wfv)
-    ok_eps = (
-        df['eps_for_wfv'].notna()
-        & (df['eps_for_wfv'] > 0)
-        & df['peer_pe_used'].notna()
-        & (df['peer_pe_used'] > 0)
-        & df['price'].notna()
-        & (df['price'] > 0)
-    )
+    df["wfv_peer"] = df["eps_for_wfv"] * df["peer_pe_used"]
     df.loc[~ok_eps, 'wfv_peer'] = float('nan')
     df["fair_bear_peer"] = fair_bear.where(~is_excluded)
     df["fair_risk_peer"] = fair_risk.where(~is_excluded)
@@ -301,8 +172,6 @@ def main():
     df["fair_bull_peer"] = fair_bull.where(~is_excluded)
 
     df["peer_pe_used"] = peer_pe.where(~is_excluded)
-    # Guardrail: cap extreme peer multiples (keeps screen sane)
-    df['peer_pe_used'] = df['peer_pe_used'].clip(lower=4.0, upper=40.0)
     df["peer_level"] = peer_level.where(~is_excluded)
     df["peer_n_industry"] = ind_n.where(~is_excluded)
     df["peer_n_sector"] = sec_n.where(~is_excluded)
@@ -311,8 +180,6 @@ def main():
     df["price_to_wfv_peer"] = ratio
     df["upside_pct_peer"] = (df["wfv_peer"] / price.replace(0, np.nan)) - 1.0
     df["zone_label_peer"] = ratio.map(lambda x: zone_from_ratio(float(x)) if pd.notna(x) else "WATCH")
-    # If we couldn't compute WFV, mark explicitly
-    df.loc[df['wfv_peer'].isna(), 'zone_label_peer'] = 'NO_WFV'
 
     outp.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(outp, index=False)

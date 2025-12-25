@@ -1,0 +1,174 @@
+import math
+from pathlib import Path
+import sys
+
+import numpy as np
+import pandas as pd
+
+# Ensure repo root is on sys.path so `import src...` works when running:
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+# --- Config (data-driven guardrails) ---
+MIN_N_INDUSTRY = 15
+MIN_N_SECTOR = 30
+MIN_EPS = 0.20  # minimum EPS for PE-based WFV (avoid tiny EPS artifacts)
+WINSOR_P_LO = 0.01
+WINSOR_P_HI = 0.99
+
+# Scenario weights (match your default config)
+MULTIPLIERS = {"bear": 0.7, "risk": 0.85, "base": 1.0, "bull": 1.2}
+PROBS = {"bear": 0.25, "risk": 0.25, "base": 0.4, "bull": 0.1}
+
+BANDS = {
+    "aggressive_band": 0.8,   # STRONG_BUY
+    "add_band_hi": 0.93,      # BUY
+    "starter_band_hi": 1.0,   # TRIM
+    "watch_band_hi": 1.15,    # WATCH
+}
+
+EXCLUDE_INDUSTRY_SUBSTR = (
+    "Closed-End Fund",
+    "ETF",
+    "ETN",
+)
+
+def zone_from_ratio(r: float) -> str:
+    if not math.isfinite(r) or r <= 0:
+        return "WATCH"
+    if r <= BANDS["aggressive_band"]:
+        return "STRONG_BUY"
+    if r <= BANDS["add_band_hi"]:
+        return "BUY"
+    if r <= BANDS["starter_band_hi"]:
+        return "TRIM"
+    if r <= BANDS["watch_band_hi"]:
+        return "WATCH"
+    return "AVOID"
+
+def pick_col(df: pd.DataFrame, candidates: list[str]) -> str:
+    for c in candidates:
+        if c in df.columns:
+            return c
+    raise KeyError(f"None of these columns found: {candidates}")
+
+def main():
+    inp = Path("data/latest/finviz_scored.parquet")
+    outp = Path("data/latest/finviz_scored_peerwfv.parquet")
+
+    df = pd.read_parquet(inp)
+
+    price_col = pick_col(df, ["price", "close", "last"])
+    eps_col = pick_col(df, ["eps_(ttm)", "eps_ttm", "eps", "raw__eps_(ttm)"])
+    sector_col = pick_col(df, ["sector"])
+    industry_col = pick_col(df, ["industry"])
+
+    # Exclude obvious non-operating / fund-like instruments by industry string (cheap but effective)
+    ind = df[industry_col].astype(str)
+    is_excluded = ind.str.contains("|".join(map(str, EXCLUDE_INDUSTRY_SUBSTR)), case=False, na=False)
+
+    # Positive EPS only for EPS×multiple valuation
+    eps = pd.to_numeric(df[eps_col], errors="coerce")
+    price = pd.to_numeric(df[price_col], errors="coerce")
+
+    implied_pe = price / eps.replace(0, np.nan)
+    implied_pe = implied_pe.where((eps > 0) & np.isfinite(implied_pe) & (implied_pe > 0))
+
+    # Winsorize implied PE globally (data-driven, kills micro-eps explosions)
+    lo = implied_pe.quantile(WINSOR_P_LO)
+    hi = implied_pe.quantile(WINSOR_P_HI)
+    implied_pe_w = implied_pe.clip(lower=lo, upper=hi)
+
+    # Group sizes on usable implied_pe
+    grp_ind = [sector_col, industry_col]
+    grp_sec = [sector_col]
+
+    ind_n = implied_pe_w.groupby([df[c] for c in grp_ind]).transform("count")
+    sec_n = implied_pe_w.groupby(df[sector_col]).transform("count")
+
+    # Robust peer multiples: median (not mean)
+    ind_med = implied_pe_w.groupby([df[c] for c in grp_ind]).transform("median")
+    sec_med = implied_pe_w.groupby(df[sector_col]).transform("median")
+    glob_med = float(implied_pe_w.median())
+
+    peer_pe = ind_med.where(ind_n >= MIN_N_INDUSTRY)
+    peer_level = pd.Series(np.where(ind_n >= MIN_N_INDUSTRY, "industry", None), index=df.index)
+
+    peer_pe = peer_pe.fillna(sec_med.where(sec_n >= MIN_N_SECTOR))
+    peer_level = peer_level.fillna(pd.Series(np.where(sec_n >= MIN_N_SECTOR, "sector", pd.NA), index=df.index))
+
+    peer_pe = peer_pe.fillna(glob_med)
+    peer_level = peer_level.fillna("global")
+
+    # Build scenario fair values (anchors) and weighted fair value
+    fair_base = eps * peer_pe
+    fair_bear = fair_base * MULTIPLIERS["bear"]
+    fair_risk = fair_base * MULTIPLIERS["risk"]
+    fair_bull = fair_base * MULTIPLIERS["bull"]
+
+    wfv = (
+        PROBS["bear"] * fair_bear
+        + PROBS["risk"] * fair_risk
+        + PROBS["base"] * fair_base
+        + PROBS["bull"] * fair_bull
+    )
+
+    # Apply exclusions & invalids
+    wfv = wfv.where(~is_excluded)
+    wfv = wfv.where(np.isfinite(wfv) & (wfv > 0))
+
+    # --- Robust EPS for PE-based WFV ---
+    # Cap extreme EPS within peer group (protect against bad data / one-offs)
+    # IMPORTANT: only cap if the peer group has enough *positive EPS* names.
+    # Otherwise (e.g., biotech), capping can incorrectly crush profitable outliers.
+    MIN_POS_EPS_N = 10  # tune later
+    MIN_POS_EPS_N = 10  # tune later
+    # Robust group cols: prefer grp_cols -> grp -> ('sector','industry') if present
+    _grp_cols = locals().get('grp_cols') or locals().get('grp')
+    if _grp_cols is None:
+        _grp_cols = tuple([c for c in ('sector','industry') if c in df.columns])
+    if not _grp_cols:
+        _grp_cols = ('sector',)  # last resort
+
+    pos_n = df.groupby(_grp_cols)[eps_col].transform(lambda s: (s > 0).sum())
+    df['peer_pos_eps_n'] = pos_n
+
+    eps_cap = df.groupby(_grp_cols)[eps_col].transform(
+        lambda s: (s[s > 0].quantile(0.90) if (s > 0).sum() >= MIN_POS_EPS_N else float('inf'))
+    )
+    df['eps_cap_peer'] = eps_cap
+    df['eps_for_wfv'] = df[eps_col].clip(upper=eps_cap)
+
+    df["wfv_peer"] = df["eps_for_wfv"] * df["peer_pe_used"]
+    df.loc[~ok_eps, 'wfv_peer'] = float('nan')
+    df["fair_bear_peer"] = fair_bear.where(~is_excluded)
+    df["fair_risk_peer"] = fair_risk.where(~is_excluded)
+    df["fair_base_peer"] = fair_base.where(~is_excluded)
+    df["fair_bull_peer"] = fair_bull.where(~is_excluded)
+
+    df["peer_pe_used"] = peer_pe.where(~is_excluded)
+    df["peer_level"] = peer_level.where(~is_excluded)
+    df["peer_n_industry"] = ind_n.where(~is_excluded)
+    df["peer_n_sector"] = sec_n.where(~is_excluded)
+
+    ratio = price / df["wfv_peer"].replace(0, np.nan)
+    df["price_to_wfv_peer"] = ratio
+    df["upside_pct_peer"] = (df["wfv_peer"] / price.replace(0, np.nan)) - 1.0
+    df["zone_label_peer"] = ratio.map(lambda x: zone_from_ratio(float(x)) if pd.notna(x) else "WATCH")
+
+    outp.parent.mkdir(parents=True, exist_ok=True)
+    df.to_parquet(outp, index=False)
+
+    print("wrote:", outp)
+    print("wfv_peer non-null:", int(df["wfv_peer"].notna().sum()), "/", len(df))
+    print("zone_label_peer counts:\n", df["zone_label_peer"].value_counts().head(20))
+
+    # show worst extremes for sanity
+    cols = [c for c in ["ticker", sector_col, industry_col, price_col, eps_col, "peer_pe_used", "peer_level", "peer_n_industry",
+                        "wfv_peer", "price_to_wfv_peer", "upside_pct_peer", "zone_label_peer"] if c in df.columns]
+    print("\nTop 20 upside (peer):\n", df.sort_values("upside_pct_peer", ascending=False)[cols].head(20).to_string(index=False))
+    print("\nTop 20 overvalued (peer):\n", df.sort_values("price_to_wfv_peer", ascending=False)[cols].head(20).to_string(index=False))
+
+if __name__ == "__main__":
+    main()
