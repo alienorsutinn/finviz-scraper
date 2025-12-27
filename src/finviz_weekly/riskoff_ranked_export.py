@@ -1,53 +1,92 @@
 from __future__ import annotations
 
+import argparse
+import logging
 from pathlib import Path
+from typing import Optional
+
 import pandas as pd
 
-
-ZONE_RANK = {
-    "STRONG_BUY": 0,
-    "BUY": 1,
-    "WATCH": 2,
-    "HOLD": 3,
-    "TRIM": 4,
-    "AVOID": 5,
-    "NO_DATA": 9,
-}
+LOGGER = logging.getLogger(__name__)
 
 
-def export_riskoff_ranked(latest_scored_path: str | Path, out_csv_path: str | Path, top: int = 80) -> None:
-    df = pd.read_parquet(latest_scored_path)
+def _read_latest_scored(out_dir: Path) -> pd.DataFrame:
+    latest_dir = out_dir / "latest"
+    parquet_path = latest_dir / "finviz_scored.parquet"
+    csv_gz_path = latest_dir / "finviz_scored.csv.gz"
+    csv_path = latest_dir / "finviz_scored.csv"
 
-    # Find ticker column robustly
-    ticker_cols = [c for c in df.columns if c.lower() in ("ticker", "symbol") or "ticker" in c.lower() or "symbol" in c.lower()]
-    ticker_col = ticker_cols[0] if ticker_cols else None
+    # Prefer parquet if it exists AND can be read
+    if parquet_path.exists():
+        try:
+            return pd.read_parquet(parquet_path)
+        except Exception as e:
+            LOGGER.warning(
+                "Failed to read %s (%s). Falling back to CSV.", parquet_path, e
+            )
 
-    # Require riskoff outputs
-    req = ["wfv_riskoff", "price_to_wfv_riskoff", "zone", "size_units"]
-    missing = [c for c in req if c not in df.columns]
+    # Fall back to CSV artifacts (these are always written)
+    if csv_gz_path.exists():
+        return pd.read_csv(csv_gz_path, compression="gzip")
+    if csv_path.exists():
+        return pd.read_csv(csv_path)
+
+    raise FileNotFoundError(
+        f"Could not find latest scored snapshot. Tried: "
+        f"{parquet_path}, {csv_gz_path}, {csv_path}"
+    )
+
+
+def export_riskoff_ranked(out: str = "data", top: int = 80) -> Path:
+    out_dir = Path(out)
+    df = _read_latest_scored(out_dir)
+
+    required = {"ticker", "wfv", "wfv_riskoff", "price_to_wfv_riskoff", "zone", "size_units", "risk_score"}
+    missing = [c for c in required if c not in df.columns]
     if missing:
-        raise ValueError(f"Missing required columns in scored parquet: {missing}")
+        raise ValueError(f"Missing required columns in scored snapshot: {missing}")
 
-    out = df[df["wfv_riskoff"].notna()].copy()
-    out["zone_rank"] = out["zone"].map(ZONE_RANK).fillna(9).astype(int)
-    out = out.sort_values(["zone_rank", "price_to_wfv_riskoff"], ascending=[True, True])
+    # Keep only actionable zones (optional: tune this)
+    allowed_zones = {"STRONG_BUY", "BUY", "WATCH", "HOLD", "TRIM", "AVOID"}
+    df = df[df["zone"].isin(allowed_zones)].copy()
 
-    cols = []
-    if ticker_col:
-        cols.append(ticker_col)
-    # include helpful context if present
-    for c in ["Company", "Sector", "Industry", "Price", "wfv", "wfv_riskoff", "price_to_wfv_riskoff", "zone", "size_units", "risk_score", "flags", "CompositeScore"]:
-        if c in out.columns and c not in cols:
-            cols.append(c)
+    # Rank: best zone first, cheapest (price_to_wfv_riskoff) first, then lower risk_score
+    zone_rank = {
+        "STRONG_BUY": 0,
+        "BUY": 1,
+        "WATCH": 2,
+        "HOLD": 3,
+        "TRIM": 4,
+        "AVOID": 5,
+    }
+    df["zone_rank"] = df["zone"].map(zone_rank).fillna(99).astype(int)
 
-    out.head(top)[cols].to_csv(out_csv_path, index=False)
-    print(f"Wrote: {out_csv_path} (rows={min(top, len(out))})")
+    df = df.sort_values(
+        by=["zone_rank", "price_to_wfv_riskoff", "risk_score"],
+        ascending=[True, True, True],
+        kind="mergesort",
+    )
+
+    cols = ["ticker", "wfv", "wfv_riskoff", "price_to_wfv_riskoff", "zone", "size_units", "risk_score"]
+    out_path = out_dir / "latest" / "riskoff_ranked.csv"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    df.head(int(top))[cols].to_csv(out_path, index=False)
+    print(f"Wrote: {out_path} (rows={min(len(df), int(top))})")
+    return out_path
+
+
+def main(argv: Optional[list[str]] = None) -> int:
+    logging.basicConfig(level=logging.INFO)
+
+    p = argparse.ArgumentParser(description="Export RiskOff-ranked CSV from latest scored snapshot.")
+    p.add_argument("--out", default="data", help="Output directory (default: data)")
+    p.add_argument("--top", type=int, default=80, help="Top N rows (default: 80)")
+    args = p.parse_args(argv)
+
+    export_riskoff_ranked(out=args.out, top=args.top)
+    return 0
 
 
 if __name__ == "__main__":
-    # Default paths (matches repo structure)
-    export_riskoff_ranked(
-        latest_scored_path="data/latest/finviz_scored.parquet",
-        out_csv_path="data/latest/riskoff_ranked.csv",
-        top=80,
-    )
+    raise SystemExit(main())
