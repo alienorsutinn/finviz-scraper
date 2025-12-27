@@ -160,9 +160,9 @@ def add_multiples_valuation(
     out = df.copy()
 
     price_col = _find_col(colmap, ["price", "Price"])
-    pe_col = _find_col(colmap, ["p/e", "p/e ttm", "pe", "pe ttm"])
-    pb_col = _find_col(colmap, ["p/b", "p/b ttm", "pb"])
-    pfcf_col = _find_col(colmap, ["p/fcf", "p/ fcf", "p/cf", "p/cash flow"])
+    pe_col = _find_col(colmap, ["p_e", "raw__p_e", "p/e", "p/e ttm", "p_e_ttm", "ttm_p_e", "pe", "pe ttm"])
+    pb_col = _find_col(colmap, ["p_b", "raw__p_b", "p/b", "p/b ttm", "p_b_ttm", "ttm_p_b", "pb"])
+    pfcf_col = _find_col(colmap, ["p_fcf", "raw__p_fcf", "p/fcf", "p/ fcf", "pfcf", "p/cf", "p/cash flow", "p_fcf_ttm", "ttm_p_fcf"])
     mcap_col = _find_col(colmap, ["market cap", "market_cap", "mkt cap", "mcap"])
 
     if price_col is None:
