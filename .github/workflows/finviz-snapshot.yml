@@ -1,16 +1,12 @@
 name: finviz-snapshot
 
 on:
-  schedule:
-    # Runs daily, but we skip every other day via parity check.
-    # 01:10 UTC = 09:10 Malaysia (Asia/Kuala_Lumpur)
-    - cron: "10 1 * * *"
   workflow_dispatch:
     inputs:
       ticker_limit:
         description: "Max tickers"
         required: false
-        "
+        default: "500"
       persist_results:
         description: "Commit data back into repo"
         required: false
@@ -19,6 +15,9 @@ on:
         description: "Ignore parity check"
         required: false
         default: "false"
+  schedule:
+    # 01:10 UTC = 09:10 Malaysia (Asia/Kuala_Lumpur)
+    - cron: "10 1 * * *"
 
 permissions:
   contents: write
