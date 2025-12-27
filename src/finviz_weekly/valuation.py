@@ -289,3 +289,48 @@ def add_multiples_valuation(
     ]
 
     return out
+
+# ---- Canonical RiskOff helpers ----
+def _canon_zone_from_ratio(price_to_wfv_riskoff: float) -> str:
+    """Map price/RiskOffWFV to canonical ladder zones."""
+    import math
+    if not math.isfinite(price_to_wfv_riskoff) or price_to_wfv_riskoff <= 0:
+        return "NO_DATA"
+    for label, cutoff in CANON_ZONE_LADDER:
+        if price_to_wfv_riskoff <= cutoff:
+            return label
+    return "NO_DATA"
+
+def _peer_penalty(peer_n: float) -> float:
+    """Extra penalty (0..0.12) for small peer sets."""
+    import math
+    try:
+        n = float(peer_n)
+    except Exception:
+        return 0.05
+    if not math.isfinite(n):
+        return 0.05
+    if n >= MIN_PEER_N:
+        return 0.0
+    # linearly up to 0.12 when n -> 2
+    return max(0.0, min(1.0, (MIN_PEER_N - n) / (MIN_PEER_N - 2))) * 0.12
+
+def _size_units(zone: str, risk_score_0_100: float) -> float:
+    """
+    Returns suggested position size in 'units' (0..1).
+    Negative values mean reduce / exit.
+    """
+    import math
+    base = {
+        "STRONG_BUY": 1.00,
+        "BUY": 0.65,
+        "WATCH": 0.25,
+        "HOLD": 0.00,
+        "TRIM": -0.35,
+        "AVOID": -1.00,
+        "NO_DATA": 0.00,
+    }.get(str(zone), 0.00)
+
+    r = float(risk_score_0_100) if math.isfinite(float(risk_score_0_100)) else 60.0
+    risk_mult = max(0.35, min(1.00, 1.0 - (r / 140.0)))
+    return float(base * risk_mult)
