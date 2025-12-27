@@ -1,18 +1,21 @@
-"""Pipeline orchestration (crash-safe, resumable)."""
 from __future__ import annotations
 
 import asyncio
 import logging
+import random
+import time
+from dataclasses import asdict
 from datetime import date
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
+import requests
 
 from .config import AppConfig
 from .fundamentals import scrape_fundamentals
-from .parse import parse_human_number, parse_missing, parse_percent, parse_range
-from .screener import get_industries, get_tickers_for_industry, get_tickers_all
+from .http import create_session
+from .screener import get_industries, get_tickers_all, get_tickers_for_industry
 from .storage import (
     append_checkpoint,
     append_history,
@@ -23,236 +26,184 @@ from .storage import (
     update_latest,
     write_meta,
 )
+from .utils import normalize_records
 
 LOGGER = logging.getLogger(__name__)
 
 
-class AsyncRateLimiter:
-    """Global rate limiter across all tasks."""
-
-    def __init__(self, rate_per_sec: float) -> None:
-        self.rate_per_sec = rate_per_sec
-        self._lock = asyncio.Lock()
-        self._last_call: Optional[float] = None
-
-    async def wait(self) -> None:
-        async with self._lock:
-            loop = asyncio.get_running_loop()
-            now = loop.time()
-            min_interval = 1 / self.rate_per_sec if self.rate_per_sec > 0 else 0
-            if self._last_call is None:
-                self._last_call = now
-                return
-            elapsed = now - self._last_call
-            if elapsed < min_interval:
-                await asyncio.sleep(min_interval - elapsed)
-            self._last_call = asyncio.get_running_loop().time()
+def _sleep_jitter(cfg: AppConfig) -> None:
+    rl = cfg.run.rate_limits
+    time.sleep(random.uniform(float(rl.page_sleep_min), float(rl.page_sleep_max)))
 
 
-def build_universe(session, config: AppConfig) -> List[str]:
-    # Prefer full screener universe (no industry filter). Fall back to per-industry union if blocked.
+def _load_cached_universe(out_dir: str) -> List[str]:
+    # Try the common "latest" artifacts and pull tickers if present.
+    candidates = [
+        Path(out_dir) / "latest" / "finviz_scored.parquet",
+        Path(out_dir) / "latest" / "finviz_fundamentals.parquet",
+        Path(out_dir) / "latest" / "finviz_scored_peerwfv.parquet",
+    ]
+    for p in candidates:
+        try:
+            if p.exists():
+                df = pd.read_parquet(p)
+                if "ticker" in df.columns:
+                    ticks = [str(x).upper() for x in df["ticker"].dropna().tolist()]
+                    ticks = sorted(set(ticks))
+                    if ticks:
+                        LOGGER.warning("Using cached universe from %s (%d tickers)", p.as_posix(), len(ticks))
+                        return ticks
+        except Exception:
+            continue
+    return []
+
+
+def build_universe(session: requests.Session, cfg: AppConfig) -> List[str]:
+    # Attempt 1: all-screener (fastest when it works)
     try:
-        cfg = locals().get("config") or locals().get("cfg")
-        min_sleep = getattr(cfg, "page_sleep_min", 0.8) if cfg is not None else 0.8
-        max_sleep = getattr(cfg, "page_sleep_max", 1.8) if cfg is not None else 1.8
-        page_sleep_range = (min_sleep, max_sleep)
-
-        limit = locals().get("ticker_limit")
-        if limit is None and cfg is not None:
-            limit = getattr(cfg, "ticker_limit", None)
-
-        tickers_all = get_tickers_all(
-            session,
-            http_config,
-            ticker_limit=limit,
-            page_sleep_range=page_sleep_range,
-        )
-        if tickers_all:
-            LOGGER.info("Universe (all-screener) tickers=%d", len(tickers_all))
-            return tickers_all[:limit] if limit else tickers_all
+        ticks = get_tickers_all(session, cfg.http, ticker_limit=cfg.run.ticker_limit)
+        if ticks:
+            LOGGER.info("Universe size: %d tickers (all-screener)", len(ticks))
+            return ticks
     except Exception as e:
         LOGGER.warning("All-screener universe failed (%s). Falling back to per-industry union.", e)
 
-    industries = get_industries(session, config.http)
-    if config.run.industry_limit:
-        industries = industries[: config.run.industry_limit]
+    # Attempt 2: per-industry union (more robust)
+    try:
+        industries = get_industries(session, cfg.http)
+        if cfg.run.industry_limit:
+            industries = industries[: int(cfg.run.industry_limit)]
 
-    tickers: List[str] = []
-    for code in industries:
-        tickers.extend(
-            get_tickers_for_industry(
-                session,
-                config.http,
-                code,
-                ticker_limit=config.run.ticker_limit,
-                page_sleep_range=(
-                    config.run.rate_limits.page_sleep_min,
-                    config.run.rate_limits.page_sleep_max,
-                ),
-            )
-        )
-        if config.run.ticker_limit and len(tickers) >= config.run.ticker_limit:
-            tickers = tickers[: config.run.ticker_limit]
-            break
+        all_set: set[str] = set()
+        for ind in industries:
+            try:
+                ticks_i = get_tickers_for_industry(session, cfg.http, ind, ticker_limit=None)
+                all_set.update(ticks_i)
+                if cfg.run.ticker_limit and len(all_set) >= int(cfg.run.ticker_limit):
+                    break
+                _sleep_jitter(cfg)
+            except Exception as e:
+                LOGGER.warning("Industry '%s' failed (%s). Continuing.", ind, e)
 
-    # Global dedupe (tickers can appear in multiple Finviz buckets)
+        ticks = sorted(all_set)
+        if cfg.run.ticker_limit:
+            ticks = ticks[: int(cfg.run.ticker_limit)]
 
+        LOGGER.info("Universe size: %d tickers (per-industry union)", len(ticks))
+        if ticks:
+            return ticks
+    except Exception as e:
+        LOGGER.warning("Per-industry universe failed (%s).", e)
 
-    tickers = list(dict.fromkeys([str(t).strip().upper() for t in tickers if str(t).strip()]))
+    # Attempt 3: cached universe fallback
+    cached = _load_cached_universe(cfg.run.out_dir)
+    if cached:
+        if cfg.run.ticker_limit:
+            return cached[: int(cfg.run.ticker_limit)]
+        return cached
 
-
-    LOGGER.info("Universe size: %d tickers", len(tickers))
-    return tickers
-
-
-def _parse_value(raw: str):
-    raw_clean = parse_missing(raw)
-    if raw_clean is pd.NA:
-        return pd.NA
-    if isinstance(raw_clean, str) and raw_clean.endswith("%"):
-        pct = parse_percent(raw_clean)
-        if pct is not pd.NA:
-            return pct
-    if isinstance(raw_clean, str) and "-" in raw_clean:
-        rng = parse_range(raw_clean)
-        if rng is not pd.NA:
-            return rng
-    num = parse_human_number(raw_clean)
-    if num is not pd.NA:
-        return num
-    return raw_clean
+    LOGGER.warning("Universe size: 0 tickers")
+    return []
 
 
-def _snake_case(key: str) -> str:
-    return key.strip().lower().replace(" ", "_").replace("/", "_")
+async def _scrape_one(
+    sem: asyncio.Semaphore,
+    session: requests.Session,
+    cfg: AppConfig,
+    ticker: str,
+) -> Optional[Dict[str, Any]]:
+    async with sem:
+        # Respect rate_per_sec by sleeping per-task
+        # (not perfect, but good enough + avoids insta-ban)
+        time.sleep(max(0.0, 1.0 / float(cfg.run.rate_limits.rate_per_sec)))
+        try:
+            rec = await asyncio.to_thread(scrape_fundamentals, session, cfg.http, ticker)
+            return rec
+        except Exception as e:
+            LOGGER.warning("Scrape failed ticker=%s err=%s", ticker, e)
+            return None
 
 
-def normalize_records(records: Iterable[Dict[str, object]]) -> pd.DataFrame:
-    rows = []
-    for rec in records:
-        row: Dict[str, object] = {}
-        for key, value in rec.items():
-            snake = _snake_case(str(key))
-            raw_col = f"raw__{snake}"
-            row[raw_col] = value
-            if isinstance(value, str):
-                row[snake] = _parse_value(value)
-            else:
-                row[snake] = value
-        rows.append(row)
+async def run_pipeline(session: requests.Session, cfg: AppConfig, run_dir: Path, as_of: date) -> pd.DataFrame:
+    # decide tickers
+    tickers: List[str]
+    if cfg.run.mode == "tickers":
+        tickers = list(cfg.run.tickers)
+        if cfg.run.tickers_file:
+            p = Path(cfg.run.tickers_file)
+            if p.exists():
+                txt = p.read_text(encoding="utf-8").strip()
+                if txt:
+                    tickers = [t.strip().upper() for t in txt.replace("\n", ",").split(",") if t.strip()]
+    else:
+        tickers = build_universe(session, cfg)
 
-    df = pd.DataFrame(rows)
+    if not tickers:
+        raise RuntimeError("Universe is empty (Finviz blocked or parser broke). Aborting to avoid writing empty outputs.")
 
-    # ensure ticker column exists + first
-    if "ticker" not in df.columns and "Ticker" in df.columns:
-        df["ticker"] = df["Ticker"]
-    if "ticker" in df.columns:
-        s = df.pop("ticker")
-        df.insert(0, "ticker", s.astype(str).str.upper())
+    # resume via checkpoint
+    records, done = load_checkpoint(run_dir) if cfg.run.resume else ([], set())
+    remaining = [t for t in tickers if t not in done]
 
+    LOGGER.info("Resume=%s; tickers_total=%d; already_done=%d; remaining=%d",
+                cfg.run.resume, len(tickers), len(done), len(remaining))
+
+    sem = asyncio.Semaphore(max(1, int(cfg.run.rate_limits.concurrency)))
+
+    out_records: List[Dict[str, Any]] = list(records)
+    buffer: List[Dict[str, Any]] = []
+
+    tasks = []
+    for t in remaining:
+        tasks.append(asyncio.create_task(_scrape_one(sem, session, cfg, t)))
+
+    checkpoint_every = max(1, int(cfg.run.rate_limits.checkpoint_every))
+
+    completed = 0
+    for fut in asyncio.as_completed(tasks):
+        rec = await fut
+        completed += 1
+        if rec:
+            buffer.append(rec)
+
+        if completed % checkpoint_every == 0:
+            if buffer:
+                append_checkpoint(run_dir, buffer)
+                out_records.extend(buffer)
+                buffer.clear()
+            write_meta(run_dir, {"as_of": as_of.isoformat(), "tickers_total": len(tickers), "tickers_done": len(done) + completed})
+
+    # flush
+    if buffer:
+        append_checkpoint(run_dir, buffer)
+        out_records.extend(buffer)
+        buffer.clear()
+
+    df = normalize_records(out_records) if out_records else pd.DataFrame()
     return df
 
 
-async def run_pipeline(session, config: AppConfig, run_dir: Path, as_of: date) -> pd.DataFrame:
-    # Determine ticker list
-    if config.run.mode == "universe":
-        tickers = build_universe(session, config)
-    else:
-        tickers = list(config.run.tickers)
-
-    if config.run.ticker_limit:
-        tickers = tickers[: config.run.ticker_limit]
-
-    # Resume support (skip tickers already checkpointed)
-    checkpoint_records: List[Dict[str, object]] = []
-    done: set[str] = set()
-    if config.run.resume:
-        checkpoint_records, done = load_checkpoint(run_dir)
-        if done:
-            LOGGER.info("Resume enabled: %d tickers already checkpointed for %s", len(done), as_of.isoformat())
-
-    remaining = [t for t in tickers if t.upper() not in done]
-    LOGGER.info("Scraping %d tickers (remaining), %d already saved", len(remaining), len(done))
-
-    records: List[Dict[str, object]] = list(checkpoint_records)
-
-    limiter = AsyncRateLimiter(config.run.rate_limits.rate_per_sec)
-    sem = asyncio.Semaphore(max(1, int(config.run.rate_limits.concurrency)))
-    checkpoint_every = max(1, int(config.run.rate_limits.checkpoint_every or 1))
-
-    async def scrape_one(ticker: str) -> Dict[str, object]:
-        async with sem:
-            try:
-                await limiter.wait()
-                data = await asyncio.to_thread(scrape_fundamentals, ticker)
-                if not isinstance(data, dict):
-                    raise ValueError(f"Unexpected fundamentals payload: {data}")
-                data.setdefault("Ticker", ticker)
-                data["__status"] = "ok"
-                return data
-            except Exception as exc:
-                # Mark as done to avoid infinite retries on resume
-                return {"Ticker": ticker, "__status": "error", "__error": repr(exc)}
-
-    tasks = [asyncio.create_task(scrape_one(t)) for t in remaining]
-
-    completed = 0
-    total_new = len(tasks)
-
-    def _counts(recs: List[Dict[str, object]]) -> tuple[int, int]:
-        ok = sum(1 for r in recs if r.get("__status") == "ok")
-        err = sum(1 for r in recs if r.get("__status") == "error")
-        return ok, err
-
-    for fut in asyncio.as_completed(tasks):
-        rec = await fut
-        records.append(rec)
-
-        # DURABLE checkpoint after every ticker
-        append_checkpoint(run_dir, rec)
-        completed += 1
-
-        if completed % checkpoint_every == 0 or completed == total_new:
-            df_partial = normalize_records(records)
-            save_partial_outputs(df_partial, run_dir, config.run.formats)
-
-            ok, err = _counts(records)
-            write_meta(
-                run_dir,
-                {
-                    "as_of": as_of.isoformat(),
-                    "total_target": len(tickers),
-                    "already_checkpointed": len(done),
-                    "completed_this_run": completed,
-                    "ok": ok,
-                    "error": err,
-                },
-            )
-            LOGGER.info("Checkpoint: %d/%d new tickers done (ok=%d, err=%d)", completed, total_new, ok, err)
-
-    return normalize_records(records)
-
-
-def execute(session, config: AppConfig) -> pd.DataFrame:
+def execute(cfg: AppConfig) -> pd.DataFrame:
     as_of = date.today()
-    run_dir = prepare_run_dir(config.run.out_dir, as_of, resume=config.run.resume)
+    run_dir = prepare_run_dir(cfg.run.out_dir, as_of)
+
+    session = create_session(cfg.http)
 
     try:
-        df = asyncio.run(run_pipeline(session, config, run_dir, as_of))
+        df = asyncio.run(run_pipeline(session, cfg, run_dir, as_of))
     except KeyboardInterrupt:
-        # salvage from checkpoint and write a partial snapshot
         LOGGER.warning("Interrupted. Salvaging from checkpoint and writing partial snapshot...")
         records, _ = load_checkpoint(run_dir)
         df = normalize_records(records) if records else pd.DataFrame()
-        save_partial_outputs(df, run_dir, config.run.formats)
+        save_partial_outputs(df, run_dir, cfg.run.formats)
         write_meta(run_dir, {"as_of": as_of.isoformat(), "interrupted": True, "rows": int(len(df))})
         LOGGER.warning("Partial saved to %s", run_dir)
         return df
 
-    # final outputs
-    save_final_outputs(df, run_dir, config.run.formats)
-    update_latest(df, config.run.out_dir, as_of, only_ok=config.run.latest_only_ok, include_as_of_date=config.run.latest_include_as_of_date)
-    append_history(df, config.run.out_dir, as_of)
+    # Final outputs
+    save_final_outputs(df, run_dir, cfg.run.formats)
+    update_latest(df, cfg.run.out_dir, as_of, only_ok=cfg.run.latest_only_ok, include_as_of_date=cfg.run.latest_include_as_of_date)
+    append_history(df, cfg.run.out_dir, as_of)
 
     LOGGER.info("Run completed, data in %s", run_dir)
     return df
