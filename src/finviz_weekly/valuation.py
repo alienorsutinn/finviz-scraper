@@ -29,6 +29,19 @@ import math
 import pandas as pd
 
 
+CANON_ZONE_LADDER = [
+    ("STRONG_BUY", 0.60),
+    ("BUY", 0.75),
+    ("WATCH", 0.90),
+    ("HOLD", 1.10),
+    ("TRIM", 1.35),
+    ("AVOID", float("inf")),
+]
+
+MIN_PEER_N = 10
+MAX_RISK_PENALTY = 0.60
+
+
 @dataclass(frozen=True)
 class ScenarioConfig:
     multipliers: dict[str, float]
@@ -238,5 +251,41 @@ def add_multiples_valuation(
     out["upside_pct"] = (wfv / price.replace(0, math.nan)) - 1.0
 
     out["zone_label"] = price_to_wfv.map(lambda r: _zone_from_ratio(float(r) if pd.notna(r) else float("nan"), cfg))
+
+    # -----------------------------
+    # RiskOff overlay (Finviz-only v0)
+    # -----------------------------
+    # score_risk in this repo is "higher is safer" (0..1). Convert to "risk score" (higher worse).
+    if "score_risk" in out.columns:
+        rs = pd.to_numeric(out["score_risk"], errors="coerce")
+        out["risk_score"] = (1.0 - rs).clip(lower=0.0, upper=1.0) * 100.0
+    else:
+        out["risk_score"] = 60.0
+
+    # Proxy risk penalty: scale 0..MAX_RISK_PENALTY
+    out["risk_penalty_proxy"] = (out["risk_score"].astype(float) / 100.0).clip(0.0, 1.0) * MAX_RISK_PENALTY
+
+    # Peer instability penalty if peer_n_industry exists
+    if "peer_n_industry" in out.columns:
+        pn = pd.to_numeric(out["peer_n_industry"], errors="coerce")
+        out["peer_penalty"] = pn.map(lambda x: _peer_penalty(float(x)) if pd.notna(x) else 0.05)
+    else:
+        out["peer_penalty"] = 0.0
+
+    # Anchor penalty: if only 1 anchor, add small penalty (reduces false precision)
+    out["anchor_penalty"] = 0.0
+    if "valuation_anchors" in out.columns:
+        a = pd.to_numeric(out["valuation_anchors"], errors="coerce")
+        out.loc[a == 1, "anchor_penalty"] = 0.05
+
+    out["total_penalty"] = (out["risk_penalty_proxy"] + out["peer_penalty"] + out["anchor_penalty"]).clip(0.0, MAX_RISK_PENALTY)
+
+    out["wfv_riskoff"] = out["wfv"] * (1.0 - out["total_penalty"])
+    out["price_to_wfv_riskoff"] = price / out["wfv_riskoff"].replace(0, math.nan)
+
+    out["zone"] = out["price_to_wfv_riskoff"].map(lambda r: _canon_zone_from_ratio(float(r) if pd.notna(r) else float("nan")))
+    out["size_units"] = [
+        _size_units(z, float(r)) for z, r in zip(out["zone"].astype(str).tolist(), out["risk_score"].astype(float).tolist())
+    ]
 
     return out

@@ -248,6 +248,29 @@ def _read_latest(out_dir: str) -> pd.DataFrame:
     return pd.read_parquet(path)
 
 
+def _append_scored_history(out_dir: Path, scored_df: pd.DataFrame, as_of: date) -> None:
+    """Append scored snapshot into data/history/finviz_scored_history.parquet (dedupe by ticker+as_of_date)."""
+    hist_dir = out_dir / "history"
+    hist_dir.mkdir(parents=True, exist_ok=True)
+    hist_path = hist_dir / "finviz_scored_history.parquet"
+
+    dfh = scored_df.copy()
+    if "ticker" not in dfh.columns:
+        return
+
+    dfh["ticker"] = dfh["ticker"].astype(str).str.upper()
+    dfh["as_of_date"] = as_of.isoformat()
+
+    if hist_path.exists():
+        old = pd.read_parquet(hist_path)
+        combined = pd.concat([old, dfh], ignore_index=True)
+    else:
+        combined = dfh
+
+    combined = combined.dropna(subset=["ticker", "as_of_date"])
+    combined = combined.drop_duplicates(subset=["ticker", "as_of_date"], keep="last")
+    combined.to_parquet(hist_path, index=False)
+
 def _apply_basic_filters(df: pd.DataFrame, *, min_market_cap: float, min_price: float) -> pd.DataFrame:
     out = df.copy()
     colmap = _build_colmap(out)
@@ -497,6 +520,9 @@ def run_screening(
     scored.to_parquet(latest_dir / "finviz_scored.parquet", index=False)
     scored.to_csv(run_dir / "finviz_scored.csv.gz", index=False, compression="gzip")
     scored.to_csv(latest_dir / "finviz_scored.csv.gz", index=False, compression="gzip")
+
+    # NEW: scored history for learning + trend analysis
+    _append_scored_history(Path(out_dir), scored, as_of)
 
     lists: Dict[str, pd.DataFrame] = {}
     unions_operating: List[str] = []
