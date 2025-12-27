@@ -75,6 +75,19 @@ jobs:
             --ticker-limit "${{ inputs.ticker_limit || '500' }}" \
             --out data
 
+      - name: Sanity check: fundamentals rows
+        run: |
+          python - <<'PY'
+          import pandas as pd, sys
+          p = "data/latest/finviz_fundamentals.parquet"
+          df = pd.read_parquet(p)
+          n = len(df)
+          print("fundamentals_rows:", n)
+          if n < 1500:
+              print("ERROR: too few rows (likely blocked). Failing run so we don't commit garbage.")
+              sys.exit(1)
+          PY
+
       - name: Run screen (scores + zones + scored history)
         run: |
           python -m finviz_weekly screen \
