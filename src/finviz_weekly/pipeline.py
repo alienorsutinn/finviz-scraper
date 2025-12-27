@@ -12,7 +12,7 @@ import pandas as pd
 from .config import AppConfig
 from .fundamentals import scrape_fundamentals
 from .parse import parse_human_number, parse_missing, parse_percent, parse_range
-from .screener import get_industries, get_tickers_for_industry
+from .screener import get_industries, get_tickers_for_industry, get_tickers_all
 from .storage import (
     append_checkpoint,
     append_history,
@@ -50,6 +50,29 @@ class AsyncRateLimiter:
 
 
 def build_universe(session, config: AppConfig) -> List[str]:
+    # Prefer full screener universe (no industry filter). Fall back to per-industry union if blocked.
+    try:
+        cfg = locals().get("config") or locals().get("cfg")
+        min_sleep = getattr(cfg, "page_sleep_min", 0.8) if cfg is not None else 0.8
+        max_sleep = getattr(cfg, "page_sleep_max", 1.8) if cfg is not None else 1.8
+        page_sleep_range = (min_sleep, max_sleep)
+
+        limit = locals().get("ticker_limit")
+        if limit is None and cfg is not None:
+            limit = getattr(cfg, "ticker_limit", None)
+
+        tickers_all = get_tickers_all(
+            session,
+            http_config,
+            ticker_limit=limit,
+            page_sleep_range=page_sleep_range,
+        )
+        if tickers_all:
+            LOGGER.info("Universe (all-screener) tickers=%d", len(tickers_all))
+            return tickers_all[:limit] if limit else tickers_all
+    except Exception as e:
+        LOGGER.warning("All-screener universe failed (%s). Falling back to per-industry union.", e)
+
     industries = get_industries(session, config.http)
     if config.run.industry_limit:
         industries = industries[: config.run.industry_limit]
