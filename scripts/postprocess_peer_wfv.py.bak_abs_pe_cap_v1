@@ -277,14 +277,6 @@ def main():
     wfv = wfv.where(ok_eps & ok_pe)
 
     # Canonical peer WFV (compute first; gate later if needed)
-    # Guardrail: never compute EPS-based peer WFV for loss-makers (EPS <= 0)
-    loss_maker = df[eps_col].fillna(0) <= 0
-    df['loss_maker'] = loss_maker
-    df.loc[loss_maker, 'eps_for_wfv'] = np.nan
-    # Also ensure any low-PE cap flag never triggers on non-positive EPS
-    if 'eps_low_pe_capped' in df.columns:
-        df['eps_low_pe_capped'] = df['eps_low_pe_capped'].fillna(False) & (df[eps_col] > 0)
-    
     df['wfv_peer'] = df['eps_for_wfv'] * df['peer_pe_used']
 
     # EPS validity mask for PE-based valuation (avoid 0.01 EPS artifacts)
@@ -311,36 +303,6 @@ def main():
     df["peer_pe_used"] = peer_pe.where(~is_excluded)
     # Guardrail: cap extreme peer multiples (keeps screen sane)
     df['peer_pe_used'] = df['peer_pe_used'].clip(lower=4.0, upper=40.0)
-    # PEER_QUALITY_GATE_V1
-    MIN_PEERS_USED = 10
-    # If the chosen peer set is too small, fall back to a global P/E anchor (EPS>0 only)
-    pe_raw = (df['price'] / df[eps_col]).replace([float('inf'), -float('inf')], float('nan'))
-    pe_raw_pos = pe_raw[(pe_raw > 0) & pe_raw.notna()].clip(lower=4.0, upper=40.0)
-    global_pe = float(pe_raw_pos.median()) if len(pe_raw_pos) else float('nan')
-    global_n = int(pe_raw_pos.shape[0])
-    small_peer = df['peer_n_industry'].fillna(0) < MIN_PEERS_USED
-    if global_pe == global_pe:  # not NaN
-        df.loc[small_peer, 'peer_pe_used'] = global_pe
-        df.loc[small_peer, 'peer_level'] = 'global'
-        df.loc[small_peer, 'peer_n_industry'] = global_n
-    
-    # Recompute WFV + derived metrics after peer fallback
-    df['wfv_peer'] = df['eps_for_wfv'] * df['peer_pe_used']
-    df['price_to_wfv_peer'] = df['price'] / df['wfv_peer']
-    df['upside_pct_peer'] = (df['wfv_peer'] / df['price']) - 1.0
-    
-    # Confidence score (downweights thin peers / artifacts)
-    df['confidence'] = 1.0
-    df.loc[df['peer_level'].eq('sector'), 'confidence'] *= 0.85
-    df.loc[df['peer_level'].eq('global'), 'confidence'] *= 0.70
-    df.loc[df['peer_n_industry'].fillna(0) < 15, 'confidence'] *= 0.85
-    df.loc[df['peer_n_industry'].fillna(0) < 10, 'confidence'] *= 0.70
-    if 'eps_floored' in df.columns:
-        df.loc[df['eps_floored'].fillna(False), 'confidence'] *= 0.30
-    df.loc[df['peer_pe_used'].ge(39.999), 'confidence'] *= 0.85
-    df['confidence'] = df['confidence'].clip(lower=0.05, upper=1.0)
-    df['upside_adj_peer'] = df['upside_pct_peer'] * df['confidence']
-    # END PEER_QUALITY_GATE_V1
     df["peer_level"] = peer_level.where(~is_excluded)
     df["peer_n_industry"] = ind_n.where(~is_excluded)
     df["peer_n_sector"] = sec_n.where(~is_excluded)
@@ -357,82 +319,6 @@ def main():
 
     print("wrote:", outp)
     print("wfv_peer non-null:", int(df["wfv_peer"].notna().sum()), "/", len(df))
-    # === ROUTING + CONFIDENCE (peer WFV) ===
-    def _s(col, default=float('nan')):
-        return df[col] if col in df.columns else pd.Series(default, index=df.index)
-    
-    eps = _s('eps_(ttm)')
-    fcf = _s('fcf_ttm')
-    rev_fy1 = _s('rev_fy1')
-    net_debt = _s('net_debt', default=0.0)
-    dilution_3y = _s('dilution_3y', default=0.0)
-    interest_cov = _s('interest_coverage', default=99.0)
-    
-    df['oneoff_candidate'] = (eps.fillna(0) <= 0) & (fcf.fillna(0) > 0)
-    df['earnings_quality_warning'] = (eps.fillna(0) > 0) & (fcf.fillna(0) < 0)
-    
-    df['method'] = 'GROWTH_EVS'
-    df.loc[(eps.fillna(0) > 0) & (fcf.fillna(0) > 0), 'method'] = 'CORE_EVFCF'
-    df.loc[df['oneoff_candidate'], 'method'] = 'CORE_EVFCF'
-    
-    if 'sector' in df.columns:
-        cyc_sectors = {'Energy','Basic Materials','Industrials','Consumer Cyclical'}
-        cyc_mask = df['sector'].isin(cyc_sectors) & (df['method'] == 'GROWTH_EVS')
-        df.loc[cyc_mask, 'method'] = 'CYCLICAL_EBITDA'
-    
-    conf = pd.Series(1.0, index=df.index, dtype=float)
-    if 'eps_low_pe_capped' in df.columns:
-        conf[df['eps_low_pe_capped'].fillna(False)] *= 0.35
-    if 'eps_floored' in df.columns:
-        conf[df['eps_floored'].fillna(False)] *= 0.60
-    if 'peer_n_industry' in df.columns:
-        conf[df['peer_n_industry'].fillna(0) < 10] *= 0.70
-    
-    # Missingness penalties (data completeness)
-    for c, mult in [('fcf_ttm',0.60),('enterprise_value',0.70),('shares_diluted',0.70),('net_debt',0.80),('rev_fy1',0.80)]:
-        if c in df.columns:
-            conf[df[c].isna()] *= mult
-    
-    # Dilution / leverage penalties
-    if 'dilution_3y' in df.columns:
-        conf[df['dilution_3y'].fillna(0) > 0.25] *= 0.60
-    if 'net_debt' in df.columns and 'interest_coverage' in df.columns:
-        conf[(df['net_debt'].fillna(0) > 0) & (df['interest_coverage'].fillna(99) < 2)] *= 0.60
-    
-    df['confidence'] = conf.clip(lower=0.05, upper=1.0)
-    # earnings_quality_warning penalty: EPS positive but FCF negative is often low-quality earnings
-    if 'earnings_quality_warning' in df.columns:
-        df.loc[df['earnings_quality_warning'].fillna(False), 'confidence'] *= 0.70
-        df['confidence'] = df['confidence'].clip(lower=0.05, upper=1.0)
-    if 'upside_pct_peer' in df.columns:
-        df['upside_adj_peer'] = df['upside_pct_peer'] * df['confidence']
-    else:
-        df['upside_adj_peer'] = float('nan')
-    
-    # Build 3 leaderboards (still using peer-WFV as the cheapness signal, but routed + confidence-adjusted)
-    risk_off = df[(df['method']=='CORE_EVFCF') & (fcf.fillna(0) > 0) & (df['zone_label_peer'] != 'NO_WFV')].copy()
-    if 'eps_low_pe_capped' in risk_off.columns:
-        risk_off = risk_off[~risk_off['eps_low_pe_capped'].fillna(False)]
-    risk_off = risk_off.sort_values('upside_adj_peer', ascending=False)
-    
-    growth = df[df['method']=='GROWTH_EVS'].copy()
-    growth = growth[rev_fy1.loc[growth.index].fillna(0) > 0].copy() if 'rev_fy1' in growth.columns else growth
-    growth = growth.sort_values('confidence', ascending=False)  # placeholder until EV/Sales peer gap is added
-    
-    cyclical = df[df['method']=='CYCLICAL_EBITDA'].copy()
-    cyclical = cyclical.sort_values('upside_adj_peer', ascending=False)
-    
-    out_dir = Path('data/latest')
-    out_dir.mkdir(parents=True, exist_ok=True)
-    risk_off.head(200).to_csv(out_dir / 'leaderboard_risk_off_peer.csv', index=False)
-    growth.head(200).to_csv(out_dir / 'leaderboard_growth_peer.csv', index=False)
-    cyclical.head(200).to_csv(out_dir / 'leaderboard_cyclical_peer.csv', index=False)
-    
-    print('\nLeaderboards written:')
-    print(' - data/latest/leaderboard_risk_off_peer.csv')
-    print(' - data/latest/leaderboard_growth_peer.csv')
-    print(' - data/latest/leaderboard_cyclical_peer.csv')
-    print('Counts:', dict(risk_off=len(risk_off), growth=len(growth), cyclical=len(cyclical)))
     print("zone_label_peer counts:\n", df["zone_label_peer"].value_counts().head(20))
 
     # show worst extremes for sanity

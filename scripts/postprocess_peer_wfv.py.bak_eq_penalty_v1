@@ -277,14 +277,6 @@ def main():
     wfv = wfv.where(ok_eps & ok_pe)
 
     # Canonical peer WFV (compute first; gate later if needed)
-    # Guardrail: never compute EPS-based peer WFV for loss-makers (EPS <= 0)
-    loss_maker = df[eps_col].fillna(0) <= 0
-    df['loss_maker'] = loss_maker
-    df.loc[loss_maker, 'eps_for_wfv'] = np.nan
-    # Also ensure any low-PE cap flag never triggers on non-positive EPS
-    if 'eps_low_pe_capped' in df.columns:
-        df['eps_low_pe_capped'] = df['eps_low_pe_capped'].fillna(False) & (df[eps_col] > 0)
-    
     df['wfv_peer'] = df['eps_for_wfv'] * df['peer_pe_used']
 
     # EPS validity mask for PE-based valuation (avoid 0.01 EPS artifacts)
@@ -311,36 +303,6 @@ def main():
     df["peer_pe_used"] = peer_pe.where(~is_excluded)
     # Guardrail: cap extreme peer multiples (keeps screen sane)
     df['peer_pe_used'] = df['peer_pe_used'].clip(lower=4.0, upper=40.0)
-    # PEER_QUALITY_GATE_V1
-    MIN_PEERS_USED = 10
-    # If the chosen peer set is too small, fall back to a global P/E anchor (EPS>0 only)
-    pe_raw = (df['price'] / df[eps_col]).replace([float('inf'), -float('inf')], float('nan'))
-    pe_raw_pos = pe_raw[(pe_raw > 0) & pe_raw.notna()].clip(lower=4.0, upper=40.0)
-    global_pe = float(pe_raw_pos.median()) if len(pe_raw_pos) else float('nan')
-    global_n = int(pe_raw_pos.shape[0])
-    small_peer = df['peer_n_industry'].fillna(0) < MIN_PEERS_USED
-    if global_pe == global_pe:  # not NaN
-        df.loc[small_peer, 'peer_pe_used'] = global_pe
-        df.loc[small_peer, 'peer_level'] = 'global'
-        df.loc[small_peer, 'peer_n_industry'] = global_n
-    
-    # Recompute WFV + derived metrics after peer fallback
-    df['wfv_peer'] = df['eps_for_wfv'] * df['peer_pe_used']
-    df['price_to_wfv_peer'] = df['price'] / df['wfv_peer']
-    df['upside_pct_peer'] = (df['wfv_peer'] / df['price']) - 1.0
-    
-    # Confidence score (downweights thin peers / artifacts)
-    df['confidence'] = 1.0
-    df.loc[df['peer_level'].eq('sector'), 'confidence'] *= 0.85
-    df.loc[df['peer_level'].eq('global'), 'confidence'] *= 0.70
-    df.loc[df['peer_n_industry'].fillna(0) < 15, 'confidence'] *= 0.85
-    df.loc[df['peer_n_industry'].fillna(0) < 10, 'confidence'] *= 0.70
-    if 'eps_floored' in df.columns:
-        df.loc[df['eps_floored'].fillna(False), 'confidence'] *= 0.30
-    df.loc[df['peer_pe_used'].ge(39.999), 'confidence'] *= 0.85
-    df['confidence'] = df['confidence'].clip(lower=0.05, upper=1.0)
-    df['upside_adj_peer'] = df['upside_pct_peer'] * df['confidence']
-    # END PEER_QUALITY_GATE_V1
     df["peer_level"] = peer_level.where(~is_excluded)
     df["peer_n_industry"] = ind_n.where(~is_excluded)
     df["peer_n_sector"] = sec_n.where(~is_excluded)
@@ -400,23 +362,19 @@ def main():
         conf[(df['net_debt'].fillna(0) > 0) & (df['interest_coverage'].fillna(99) < 2)] *= 0.60
     
     df['confidence'] = conf.clip(lower=0.05, upper=1.0)
-    # earnings_quality_warning penalty: EPS positive but FCF negative is often low-quality earnings
-    if 'earnings_quality_warning' in df.columns:
-        df.loc[df['earnings_quality_warning'].fillna(False), 'confidence'] *= 0.70
-        df['confidence'] = df['confidence'].clip(lower=0.05, upper=1.0)
     if 'upside_pct_peer' in df.columns:
         df['upside_adj_peer'] = df['upside_pct_peer'] * df['confidence']
     else:
         df['upside_adj_peer'] = float('nan')
     
     # Build 3 leaderboards (still using peer-WFV as the cheapness signal, but routed + confidence-adjusted)
-    risk_off = df[(df['method']=='CORE_EVFCF') & (fcf.fillna(0) > 0) & (df['zone_label_peer'] != 'NO_WFV')].copy()
+    risk_off = df[(df['method']=='CORE_EVFCF') & (df.get('fcf_ttm', 0).fillna(0) > 0) & (df['zone_label_peer'] != 'NO_WFV')].copy()
     if 'eps_low_pe_capped' in risk_off.columns:
         risk_off = risk_off[~risk_off['eps_low_pe_capped'].fillna(False)]
     risk_off = risk_off.sort_values('upside_adj_peer', ascending=False)
     
     growth = df[df['method']=='GROWTH_EVS'].copy()
-    growth = growth[rev_fy1.loc[growth.index].fillna(0) > 0].copy() if 'rev_fy1' in growth.columns else growth
+    growth = growth[growth.get('rev_fy1', 0).fillna(0) > 0].copy() if 'rev_fy1' in growth.columns else growth
     growth = growth.sort_values('confidence', ascending=False)  # placeholder until EV/Sales peer gap is added
     
     cyclical = df[df['method']=='CYCLICAL_EBITDA'].copy()
