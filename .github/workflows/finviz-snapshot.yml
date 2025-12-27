@@ -84,8 +84,7 @@ jobs:
 
       - name: Export riskoff ranked CSV
         run: |
-          python -m finviz_weekly.riskoff_ranked_export
-
+          python -m finviz_weekly.riskoff_ranked_export --out data --top 80
       - name: Upload data artifacts
         uses: actions/upload-artifact@v4
         with:
