@@ -1,209 +1,184 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 import random
 import time
-from dataclasses import asdict
 from datetime import date
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import List
 
 import pandas as pd
-import requests
 
 from .config import AppConfig
 from .fundamentals import scrape_fundamentals
 from .http import create_session
-from .screener import get_industries, get_tickers_all, get_tickers_for_industry
+from .screener import get_tickers_all
 from .storage import (
-    append_checkpoint,
     append_history,
-    load_checkpoint,
     prepare_run_dir,
-    save_final_outputs,
-    save_partial_outputs,
+    read_checkpoint,
     update_latest,
+    write_checkpoint,
     write_meta,
 )
-from .utils import normalize_records
 
 LOGGER = logging.getLogger(__name__)
 
+def _load_cached_universe(out_dir: str):
+    from pathlib import Path
+    import pandas as pd
+    p = Path(out_dir) / 'latest' / 'finviz_scored.parquet'
+    if not p.exists():
+        return None
+    df = pd.read_parquet(p)
+    if 'ticker' not in df.columns:
+        return None
+    tickers = [t for t in df['ticker'].dropna().astype(str).str.upper().tolist() if t]
+    return tickers
 
-def _sleep_jitter(cfg: AppConfig) -> None:
-    rl = cfg.run.rate_limits
-    time.sleep(random.uniform(float(rl.page_sleep_min), float(rl.page_sleep_max)))
 
 
 def _load_cached_universe(out_dir: str) -> List[str]:
-    # Try the common "latest" artifacts and pull tickers if present.
     candidates = [
         Path(out_dir) / "latest" / "finviz_scored.parquet",
+        Path(out_dir) / "history" / "finviz_fundamentals_history.parquet",
         Path(out_dir) / "latest" / "finviz_fundamentals.parquet",
-        Path(out_dir) / "latest" / "finviz_scored_peerwfv.parquet",
     ]
     for p in candidates:
+        if not p.exists():
+            continue
         try:
-            if p.exists():
-                df = pd.read_parquet(p)
-                if "ticker" in df.columns:
-                    ticks = [str(x).upper() for x in df["ticker"].dropna().tolist()]
-                    ticks = sorted(set(ticks))
-                    if ticks:
-                        LOGGER.warning("Using cached universe from %s (%d tickers)", p.as_posix(), len(ticks))
-                        return ticks
-        except Exception:
+            df = pd.read_parquet(p)
+            if "ticker" in df.columns and len(df) > 0:
+                tickers = df["ticker"].astype(str).str.upper().dropna().unique().tolist()
+                tickers = [t for t in tickers if t and t != "NAN"]
+                if tickers:
+                    LOGGER.warning("Using cached universe from %s (%s tickers)", p, len(tickers))
+                    return tickers
+        except Exception as e:
+            LOGGER.warning("Failed reading cached universe from %s (%s)", p, e)
             continue
     return []
 
 
-def build_universe(session: requests.Session, cfg: AppConfig) -> List[str]:
-    # Attempt 1: all-screener (fastest when it works)
+def build_universe(cfg: AppConfig) -> List[str]:
+    session = create_session(cfg.http)
+
+    # Try live Finviz screener
     try:
-        ticks = get_tickers_all(session, cfg.http, ticker_limit=cfg.run.ticker_limit)
-        if ticks:
-            LOGGER.info("Universe size: %d tickers (all-screener)", len(ticks))
-            return ticks
+        tickers = get_tickers_all(
+            session,
+            cfg.http,
+            ticker_limit=cfg.run.ticker_limit,
+            rate_per_sec=cfg.run.rate_per_sec,
+        )
+        tickers = list(dict.fromkeys([t.upper() for t in tickers]))  # stable dedupe
+        if tickers:
+            return tickers
+        LOGGER.warning("Live Finviz universe returned 0 tickers.")
     except Exception as e:
-        LOGGER.warning("All-screener universe failed (%s). Falling back to per-industry union.", e)
+        LOGGER.warning("Live Finviz universe failed (%s).", e)
 
-    # Attempt 2: per-industry union (more robust)
-    try:
-        industries = get_industries(session, cfg.http)
-        if cfg.run.industry_limit:
-            industries = industries[: int(cfg.run.industry_limit)]
-
-        all_set: set[str] = set()
-        for ind in industries:
-            try:
-                ticks_i = get_tickers_for_industry(session, cfg.http, ind, ticker_limit=None)
-                all_set.update(ticks_i)
-                if cfg.run.ticker_limit and len(all_set) >= int(cfg.run.ticker_limit):
-                    break
-                _sleep_jitter(cfg)
-            except Exception as e:
-                LOGGER.warning("Industry '%s' failed (%s). Continuing.", ind, e)
-
-        ticks = sorted(all_set)
-        if cfg.run.ticker_limit:
-            ticks = ticks[: int(cfg.run.ticker_limit)]
-
-        LOGGER.info("Universe size: %d tickers (per-industry union)", len(ticks))
-        if ticks:
-            return ticks
-    except Exception as e:
-        LOGGER.warning("Per-industry universe failed (%s).", e)
-
-    # Attempt 3: cached universe fallback
+    # Fallback to cached tickers
     cached = _load_cached_universe(cfg.run.out_dir)
     if cached:
-        if cfg.run.ticker_limit:
-            return cached[: int(cfg.run.ticker_limit)]
-        return cached
+        return cached[: cfg.run.ticker_limit]
 
-    LOGGER.warning("Universe size: 0 tickers")
     return []
 
 
-async def _scrape_one(
-    sem: asyncio.Semaphore,
-    session: requests.Session,
-    cfg: AppConfig,
-    ticker: str,
-) -> Optional[Dict[str, Any]]:
-    async with sem:
-        # Respect rate_per_sec by sleeping per-task
-        # (not perfect, but good enough + avoids insta-ban)
-        time.sleep(max(0.0, 1.0 / float(cfg.run.rate_limits.rate_per_sec)))
-        try:
-            rec = await asyncio.to_thread(scrape_fundamentals, session, cfg.http, ticker)
-            return rec
-        except Exception as e:
-            LOGGER.warning("Scrape failed ticker=%s err=%s", ticker, e)
-            return None
-
-
-async def run_pipeline(session: requests.Session, cfg: AppConfig, run_dir: Path, as_of: date) -> pd.DataFrame:
-    # decide tickers
-    tickers: List[str]
-    if cfg.run.mode == "tickers":
-        tickers = list(cfg.run.tickers)
-        if cfg.run.tickers_file:
-            p = Path(cfg.run.tickers_file)
-            if p.exists():
-                txt = p.read_text(encoding="utf-8").strip()
-                if txt:
-                    tickers = [t.strip().upper() for t in txt.replace("\n", ",").split(",") if t.strip()]
-    else:
-        tickers = build_universe(session, cfg)
-
-    if not tickers:
-        raise RuntimeError("Universe is empty (Finviz blocked or parser broke). Aborting to avoid writing empty outputs.")
-
-    # resume via checkpoint
-    records, done = load_checkpoint(run_dir) if cfg.run.resume else ([], set())
-    remaining = [t for t in tickers if t not in done]
-
-    LOGGER.info("Resume=%s; tickers_total=%d; already_done=%d; remaining=%d",
-                cfg.run.resume, len(tickers), len(done), len(remaining))
-
-    sem = asyncio.Semaphore(max(1, int(cfg.run.rate_limits.concurrency)))
-
-    out_records: List[Dict[str, Any]] = list(records)
-    buffer: List[Dict[str, Any]] = []
-
-    tasks = []
-    for t in remaining:
-        tasks.append(asyncio.create_task(_scrape_one(sem, session, cfg, t)))
-
-    checkpoint_every = max(1, int(cfg.run.rate_limits.checkpoint_every))
-
-    completed = 0
-    for fut in asyncio.as_completed(tasks):
-        rec = await fut
-        completed += 1
-        if rec:
-            buffer.append(rec)
-
-        if completed % checkpoint_every == 0:
-            if buffer:
-                append_checkpoint(run_dir, buffer)
-                out_records.extend(buffer)
-                buffer.clear()
-            write_meta(run_dir, {"as_of": as_of.isoformat(), "tickers_total": len(tickers), "tickers_done": len(done) + completed})
-
-    # flush
-    if buffer:
-        append_checkpoint(run_dir, buffer)
-        out_records.extend(buffer)
-        buffer.clear()
-
-    df = normalize_records(out_records) if out_records else pd.DataFrame()
-    return df
-
-
-def execute(cfg: AppConfig) -> pd.DataFrame:
+def execute(cfg: AppConfig):
     as_of = date.today()
     run_dir = prepare_run_dir(cfg.run.out_dir, as_of)
 
+    # Decide tickers list
+    if cfg.run.mode == "tickers":
+        if cfg.run.tickers:
+            tickers = [t.strip().upper() for t in cfg.run.tickers.split(",") if t.strip()]
+        elif cfg.run.tickers_file:
+            txt = Path(cfg.run.tickers_file).read_text(encoding="utf-8")
+            tickers = [t.strip().upper() for t in txt.splitlines() if t.strip()]
+        else:
+            raise RuntimeError("mode=tickers requires --tickers or --tickers-file")
+    else:
+        tickers = None
+        if getattr(cfg.run, 'prefer_cached_universe', True):
+            tickers = _load_cached_universe(cfg.run.out_dir)
+        if not tickers:
+            try:
+                tickers = build_universe(session, config)
+            except Exception as e:
+                LOGGER.warning("Live Finviz universe failed (%s)", e)
+                if not tickers:
+                    tickers = _load_cached_universe(cfg.run.out_dir)
+        if not tickers:
+            raise RuntimeError("Universe is empty. Live Finviz blocked and no cached finviz_scored.parquet available.")
+
+    tickers = tickers[: cfg.run.ticker_limit]
+
+    if not tickers:
+        raise RuntimeError(
+            "Universe is empty (Finviz blocked and no cache available). "
+            "Aborting to avoid writing empty outputs."
+        )
+
+    # Resume
+    done = read_checkpoint(run_dir) if cfg.run.resume else set()
+    if done:
+        LOGGER.info("Resume enabled: %s tickers already checkpointed for %s", len(done), as_of.isoformat())
+
+    remaining = [t for t in tickers if t not in done]
+    LOGGER.info("Universe size: %s tickers", len(tickers))
+    LOGGER.info("Scraping %s tickers (remaining), %s already saved", len(remaining), len(done))
+
+    # scrape
     session = create_session(cfg.http)
+    rows = []
+    completed = set(done)
 
-    try:
-        df = asyncio.run(run_pipeline(session, cfg, run_dir, as_of))
-    except KeyboardInterrupt:
-        LOGGER.warning("Interrupted. Salvaging from checkpoint and writing partial snapshot...")
-        records, _ = load_checkpoint(run_dir)
-        df = normalize_records(records) if records else pd.DataFrame()
-        save_partial_outputs(df, run_dir, cfg.run.formats)
-        write_meta(run_dir, {"as_of": as_of.isoformat(), "interrupted": True, "rows": int(len(df))})
-        LOGGER.warning("Partial saved to %s", run_dir)
-        return df
+    for i, t in enumerate(remaining, start=1):
+        # small jitter to reduce blocking risk
+        if cfg.run.page_sleep_max > 0:
+            time.sleep(random.uniform(cfg.run.page_sleep_min, cfg.run.page_sleep_max))
 
-    # Final outputs
-    save_final_outputs(df, run_dir, cfg.run.formats)
-    update_latest(df, cfg.run.out_dir, as_of, only_ok=cfg.run.latest_only_ok, include_as_of_date=cfg.run.latest_include_as_of_date)
-    append_history(df, cfg.run.out_dir, as_of)
+        try:
+            row = scrape_fundamentals(t, session=session)
+            if row:
+                row["ticker"] = t
+                rows.append(row)
+        except Exception as e:
+            LOGGER.warning("Scrape failed for %s (%s)", t, e)
 
+        completed.add(t)
+
+        if (i % cfg.run.checkpoint_every) == 0:
+            write_checkpoint(run_dir, completed)
+            LOGGER.info("Checkpoint: %s/%s", len(completed), len(tickers))
+
+    # Final write
+    write_checkpoint(run_dir, completed)
+
+    df = pd.DataFrame(rows)
+    if not df.empty and cfg.run.include_as_of_date_latest:
+        df.insert(0, "as_of_date", as_of.isoformat())
+
+    # Always write a run artifact (even if small), but NEVER update latest/history if empty
+    (run_dir / "fundamentals.parquet").write_bytes(b"")  # placeholder for atomic intent
+    if not df.empty:
+        df.to_parquet(run_dir / "fundamentals.parquet", index=False)
+    else:
+        # keep placeholder; meta will show 0
+        LOGGER.warning("Run produced 0 rows (Finviz likely blocked). Not updating latest/history.")
+
+    if not df.empty:
+        update_latest(
+            df,
+            cfg.run.out_dir,
+            only_ok=cfg.run.latest_only_ok,
+            include_as_of_date=cfg.run.include_as_of_date_latest,
+        )
+        append_history(df, cfg.run.out_dir, as_of)
+
+    write_meta(run_dir, {"as_of": as_of.isoformat(), "tickers_total": len(tickers), "tickers_done": len(completed)})
     LOGGER.info("Run completed, data in %s", run_dir)
     return df

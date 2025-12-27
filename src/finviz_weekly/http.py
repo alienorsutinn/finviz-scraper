@@ -1,76 +1,68 @@
 from __future__ import annotations
 
 import time
-
-DEFAULT_HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-    'Accept-Language': 'en-GB,en;q=0.9,en-US;q=0.8',
-    'Connection': 'keep-alive',
-    'Referer': 'https://finviz.com/',
-}
-
-import random
-import logging
-from typing import Optional
+from typing import Any, Optional
 
 import requests
 
 from .config import HttpConfig
 
-LOGGER = logging.getLogger(__name__)
+
+_DEFAULT_HEADERS = {
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Connection": "keep-alive",
+    "DNT": "1",
+    "Upgrade-Insecure-Requests": "1",
+}
 
 
-def create_session(config: Optional[HttpConfig] = None) -> requests.Session:
-    cfg = config or HttpConfig()
+def create_session(cfg: HttpConfig) -> requests.Session:
     s = requests.Session()
-    s.headers.update(
-        {
-            "User-Agent": cfg.user_agent,
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.9",
-            "Connection": "keep-alive",
-        }
-    )
+    headers = dict(_DEFAULT_HEADERS)
+    headers["User-Agent"] = cfg.user_agent
+    s.headers.update(headers)
+
+    # Only set proxies if explicitly provided
     if cfg.proxy:
         s.proxies.update({"http": cfg.proxy, "https": cfg.proxy})
+
     return s
 
 
-def request_with_retries(session, url: str, cfg):
-    """GET a URL with retries. Raises on persistent failures.
+def request_with_retries(
+    session: requests.Session,
+    url: str,
+    cfg: HttpConfig,
+    *,
+    params: Optional[dict[str, Any]] = None,
+) -> str:
+    last_exc: Optional[Exception] = None
 
-    Returns response.text (never silently returns empty string on error).
-    """
-    last_exc = None
-    for attempt in range(1, getattr(cfg, "max_retries", 3) + 1):
+    for attempt in range(1, cfg.max_retries + 1):
         try:
-            timeout = getattr(cfg, "timeout_sec", 20)
-            r = session.get(url, headers=DEFAULT_HEADERS, timeout=timeout, allow_redirects=True)
-            status = getattr(r, "status_code", None)
-            text = getattr(r, "text", "") or ""
-
-            # Debug visibility (critical for diagnosing Finviz blocks / CAPTCHA)
+            r = session.get(url, params=params, timeout=cfg.timeout_sec, allow_redirects=True)
+            status = r.status_code
             if status != 200:
-                raise RuntimeError(f"HTTP {status} for {url} (len={len(text)})")
+                raise RuntimeError(f"HTTP {status} for {url} (final_url={r.url})")
 
+            text = r.text or ""
             if len(text) < 200:
-                # Finviz pages are never that small unless blocked/empty
-                raise RuntimeError(f"Suspiciously small HTML for {url} (len={len(text)})")
+                # include useful headers for debugging blocks/proxies
+                ct = r.headers.get("content-type")
+                server = r.headers.get("server")
+                cl = r.headers.get("content-length")
+                raise RuntimeError(
+                    f"Suspiciously small HTML for {url} (len={len(text)}, final_url={r.url}, "
+                    f"content-type={ct}, content-length={cl}, server={server})"
+                )
 
             return text
 
         except Exception as e:
             last_exc = e
-            # simple backoff
-            sleep_s = getattr(cfg, "sleep_sec", 1.0) * attempt
-            try:
-                import time as _time
-                _time.sleep(sleep_s)
-            except Exception:
-                pass
+            if attempt < cfg.max_retries:
+                time.sleep(cfg.backoff_sec * attempt)
+            continue
 
     raise RuntimeError(f"request_with_retries failed after retries: {last_exc}")
-
-    assert last_exc is not None
-    raise last_exc
