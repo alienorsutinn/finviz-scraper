@@ -1,6 +1,15 @@
 from __future__ import annotations
 
 import time
+
+DEFAULT_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Accept-Language': 'en-GB,en;q=0.9,en-US;q=0.8',
+    'Connection': 'keep-alive',
+    'Referer': 'https://finviz.com/',
+}
+
 import random
 import logging
 from typing import Optional
@@ -28,29 +37,40 @@ def create_session(config: Optional[HttpConfig] = None) -> requests.Session:
     return s
 
 
-def request_with_retries(
-    session: requests.Session,
-    url: str,
-    config: Optional[HttpConfig] = None,
-    *,
-    http_config: Optional[HttpConfig] = None,  # backwards compat for old callers
-    timeout: Optional[float] = None,
-) -> str:
-    cfg = config or http_config or HttpConfig()
-    to = float(timeout if timeout is not None else cfg.timeout_sec)
+def request_with_retries(session, url: str, cfg):
+    """GET a URL with retries. Raises on persistent failures.
 
-    last_exc: Exception | None = None
-    for attempt in range(1, int(cfg.max_retries) + 1):
+    Returns response.text (never silently returns empty string on error).
+    """
+    last_exc = None
+    for attempt in range(1, getattr(cfg, "max_retries", 3) + 1):
         try:
-            r = session.get(url, timeout=to)
-            r.raise_for_status()
-            return r.text
+            timeout = getattr(cfg, "timeout_sec", 20)
+            r = session.get(url, headers=DEFAULT_HEADERS, timeout=timeout, allow_redirects=True)
+            status = getattr(r, "status_code", None)
+            text = getattr(r, "text", "") or ""
+
+            # Debug visibility (critical for diagnosing Finviz blocks / CAPTCHA)
+            if status != 200:
+                raise RuntimeError(f"HTTP {status} for {url} (len={len(text)})")
+
+            if len(text) < 200:
+                # Finviz pages are never that small unless blocked/empty
+                raise RuntimeError(f"Suspiciously small HTML for {url} (len={len(text)})")
+
+            return text
+
         except Exception as e:
             last_exc = e
-            sleep_s = cfg.backoff_sec * (attempt ** 1.2) + random.random() * 0.25
-            LOGGER.warning("HTTP failed (attempt %s/%s) url=%s err=%s; sleeping %.2fs",
-                           attempt, cfg.max_retries, url, e, sleep_s)
-            time.sleep(sleep_s)
+            # simple backoff
+            sleep_s = getattr(cfg, "sleep_sec", 1.0) * attempt
+            try:
+                import time as _time
+                _time.sleep(sleep_s)
+            except Exception:
+                pass
+
+    raise RuntimeError(f"request_with_retries failed after retries: {last_exc}")
 
     assert last_exc is not None
     raise last_exc

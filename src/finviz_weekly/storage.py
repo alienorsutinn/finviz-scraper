@@ -99,3 +99,17 @@ def read_meta(run_dir: Path) -> Optional[Dict[str, Any]]:
     if not p.exists():
         return None
     return json.loads(p.read_text(encoding="utf-8"))
+
+
+# -----------------------------
+# Compatibility shims (pipeline expects these names)
+# -----------------------------
+from pathlib import Path as _Path
+from datetime import date as _date
+
+def prepare_run_dir(out_dir: str, as_of: _date) -> _Path:
+    """Create run directory data/runs/YYYY-MM-DD and return it."""
+    run_dir = _Path(out_dir) / "runs" / as_of.isoformat()
+    run_dir.mkdir(parents=True, exist_ok=True)
+    return run_dir
+
