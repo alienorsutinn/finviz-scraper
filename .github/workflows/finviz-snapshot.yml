@@ -10,7 +10,7 @@ on:
       ticker_limit:
         description: "Max tickers"
         required: false
-        default: "500"
+        "
       persist_results:
         description: "Commit data back into repo"
         required: false
