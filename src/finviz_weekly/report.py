@@ -48,6 +48,206 @@ def _read_weights_mode(weights_path: Path) -> str:
         return "unknown"
 
 
+def _enhanced_data_summaries(scored: pd.DataFrame) -> List[str]:
+    """Generate enhanced data insights sections."""
+    sections = []
+
+    # Check which enhanced columns are present
+    has_insider = "insider_net_value" in scored.columns
+    has_earnings = "earnings_avg_alpha" in scored.columns
+    has_financials = (
+        "net_margin" in scored.columns
+        and "roe" in scored.columns
+        and "current_ratio" in scored.columns
+    )
+
+    if not (has_insider or has_earnings or has_financials):
+        return sections  # No enhanced data, skip
+
+    sections.append("\n## 📊 Enhanced Data Insights\n")
+    sections.append("_Enhanced data available from Phase 3+ scrapers_\n")
+
+    # Insider Trading Summary
+    if has_insider:
+        sections.append("\n### 🏢 Insider Trading Highlights\n")
+
+        # Filter to stocks with insider activity
+        insider_df = scored[scored["insider_net_value"].notna() & (scored["insider_net_value"] != 0)].copy()
+
+        if not insider_df.empty:
+            # Top insider buying
+            top_buying = insider_df.nlargest(10, "insider_net_value")
+            sections.append("\n**Top 10 Insider Buying (by net value):**\n")
+
+            rows = []
+            for _, r in top_buying.iterrows():
+                net_val = r.get("insider_net_value", 0)
+                buys = int(r.get("insider_total_buys", 0))
+                sells = int(r.get("insider_total_sells", 0))
+                ticker = str(r.get("ticker", ""))
+                company = str(r.get("company", ""))[:30]
+                sector = str(r.get("sector", ""))[:20]
+
+                rows.append([
+                    ticker,
+                    company,
+                    sector,
+                    f"${net_val:,.0f}",
+                    f"{buys}",
+                    f"{sells}",
+                ])
+
+            sections.append(_md_table(rows, headers=["Ticker", "Company", "Sector", "Net Value", "Buys", "Sells"]))
+
+            # Top insider selling
+            top_selling = insider_df.nsmallest(10, "insider_net_value")
+            if not top_selling.empty and top_selling.iloc[0]["insider_net_value"] < 0:
+                sections.append("\n**Top 10 Insider Selling (by net value):**\n")
+
+                rows = []
+                for _, r in top_selling.iterrows():
+                    net_val = r.get("insider_net_value", 0)
+                    if net_val >= 0:
+                        break  # Stop at first non-negative
+                    buys = int(r.get("insider_total_buys", 0))
+                    sells = int(r.get("insider_total_sells", 0))
+                    ticker = str(r.get("ticker", ""))
+                    company = str(r.get("company", ""))[:30]
+                    sector = str(r.get("sector", ""))[:20]
+
+                    rows.append([
+                        ticker,
+                        company,
+                        sector,
+                        f"${net_val:,.0f}",
+                        f"{buys}",
+                        f"{sells}",
+                    ])
+
+                if rows:
+                    sections.append(_md_table(rows, headers=["Ticker", "Company", "Sector", "Net Value", "Buys", "Sells"]))
+
+            # Summary stats
+            total_buyers = int((insider_df["insider_net_value"] > 0).sum())
+            total_sellers = int((insider_df["insider_net_value"] < 0).sum())
+            avg_net_buy = insider_df[insider_df["insider_net_value"] > 0]["insider_net_value"].mean()
+            avg_net_sell = insider_df[insider_df["insider_net_value"] < 0]["insider_net_value"].mean()
+
+            sections.append(f"\n**Summary:** {total_buyers} stocks with net buying, {total_sellers} with net selling. ")
+            sections.append(f"Avg net buy: ${avg_net_buy:,.0f}, Avg net sell: ${avg_net_sell:,.0f}\n")
+        else:
+            sections.append("_(No insider activity in dataset)_\n")
+
+    # Earnings Quality Summary
+    if has_earnings:
+        sections.append("\n### 📈 Earnings Quality Highlights\n")
+
+        # Filter to stocks with earnings history
+        earnings_df = scored[
+            scored["earnings_avg_alpha"].notna()
+            & (scored["earnings_total_events"].fillna(0) >= 2)
+        ].copy()
+
+        if not earnings_df.empty:
+            # Top positive earnings surprises
+            top_beats = earnings_df.nlargest(10, "earnings_avg_alpha")
+            sections.append("\n**Top 10 Consistent Earnings Beaters (avg alpha vs SPY):**\n")
+
+            rows = []
+            for _, r in top_beats.iterrows():
+                avg_alpha = r.get("earnings_avg_alpha", 0) * 100  # Convert to percentage
+                win_rate = r.get("earnings_win_rate", 0) * 100
+                total_events = int(r.get("earnings_total_events", 0))
+                ticker = str(r.get("ticker", ""))
+                company = str(r.get("company", ""))[:30]
+                sector = str(r.get("sector", ""))[:20]
+
+                rows.append([
+                    ticker,
+                    company,
+                    sector,
+                    f"{avg_alpha:.2f}%",
+                    f"{win_rate:.0f}%",
+                    f"{total_events}",
+                ])
+
+            sections.append(_md_table(rows, headers=["Ticker", "Company", "Sector", "Avg Alpha", "Win Rate", "Events"]))
+
+            # Summary stats
+            total_with_data = len(earnings_df)
+            positive_alpha = int((earnings_df["earnings_avg_alpha"] > 0).sum())
+            avg_alpha = earnings_df["earnings_avg_alpha"].mean() * 100
+            avg_win_rate = earnings_df["earnings_win_rate"].mean() * 100
+
+            sections.append(f"\n**Summary:** {total_with_data} stocks with 2+ earnings events. ")
+            sections.append(f"{positive_alpha} with positive avg alpha ({positive_alpha/total_with_data*100:.0f}%). ")
+            sections.append(f"Avg alpha: {avg_alpha:.2f}%, Avg win rate: {avg_win_rate:.0f}%\n")
+        else:
+            sections.append("_(No earnings data in dataset)_\n")
+
+    # Financial Health Summary
+    if has_financials:
+        sections.append("\n### 💪 Financial Health Highlights\n")
+
+        # Filter to stocks with all three key metrics
+        financial_df = scored[
+            scored["net_margin"].notna()
+            & scored["roe"].notna()
+            & scored["current_ratio"].notna()
+        ].copy()
+
+        if not financial_df.empty:
+            # Calculate composite health score
+            financial_df["__health_score"] = (
+                financial_df["net_margin"].clip(0, 0.3) / 0.3 * 33.3
+                + financial_df["roe"].clip(0, 0.3) / 0.3 * 33.3
+                + financial_df["current_ratio"].clip(0, 3) / 3 * 33.3
+            )
+
+            # Top financial health
+            top_health = financial_df.nlargest(10, "__health_score")
+            sections.append("\n**Top 10 Financial Health (profitability + liquidity):**\n")
+
+            rows = []
+            for _, r in top_health.iterrows():
+                net_margin = r.get("net_margin", 0) * 100
+                roe = r.get("roe", 0) * 100
+                current_ratio = r.get("current_ratio", 0)
+                debt_eq = r.get("debt_to_equity", 0)
+                ticker = str(r.get("ticker", ""))
+                company = str(r.get("company", ""))[:25]
+                sector = str(r.get("sector", ""))[:18]
+
+                rows.append([
+                    ticker,
+                    company,
+                    sector,
+                    f"{net_margin:.1f}%",
+                    f"{roe:.1f}%",
+                    f"{current_ratio:.2f}",
+                    f"{debt_eq:.2f}" if pd.notna(debt_eq) else "N/A",
+                ])
+
+            sections.append(_md_table(rows, headers=["Ticker", "Company", "Sector", "Net Margin", "ROE", "Curr Ratio", "D/E"]))
+
+            # Summary stats
+            total_with_data = len(financial_df)
+            high_margin = int((financial_df["net_margin"] > 0.15).sum())
+            high_roe = int((financial_df["roe"] > 0.15).sum())
+            healthy_liquidity = int((financial_df["current_ratio"] > 1.5).sum())
+            avg_margin = financial_df["net_margin"].mean() * 100
+            avg_roe = financial_df["roe"].mean() * 100
+            avg_current = financial_df["current_ratio"].mean()
+
+            sections.append(f"\n**Summary:** {total_with_data} stocks with financial data. ")
+            sections.append(f"{high_margin} with >15% net margin, {high_roe} with >15% ROE, {healthy_liquidity} with current ratio >1.5. ")
+            sections.append(f"Averages: {avg_margin:.1f}% margin, {avg_roe:.1f}% ROE, {avg_current:.2f}x current ratio\n")
+        else:
+            sections.append("_(No financial data in dataset)_\n")
+
+    return sections
+
+
 def write_report(
     *,
     out_dir: str,
@@ -164,6 +364,10 @@ def write_report(
         md.append("\n## Top sectors (count)\n")
         rows = [[s, str(n)] for s, n in sector_counts]
         md.append(_md_table(rows, headers=["sector", "count"]))
+
+    # Add enhanced data insights if available
+    enhanced_sections = _enhanced_data_summaries(scored)
+    md.extend(enhanced_sections)
 
     md.append("\n## Top opportunities (quick scan)\n")
     if "valuation_anchors" in scored.columns:

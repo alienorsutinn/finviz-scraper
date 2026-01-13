@@ -171,11 +171,27 @@ python -m finviz_weekly screen --out data
 
 ---
 
-### 📊 Phase 5: Visualization & Reporting (FUTURE - 1-2 months)
+### 📊 Phase 5: Visualization & Reporting (IN PROGRESS)
 
 **Priority: MEDIUM** | **Effort: Medium**
 
-#### 5.1 Create Data Dashboards
+#### 5.1 Enhanced Reports (✅ COMPLETED!)
+**File:** `src/finviz_weekly/report.py`
+
+**Enhancements:**
+- ✅ Add insider trading summary section (top buying/selling, summary stats)
+- ✅ Add earnings quality metrics (consistent beaters, avg alpha, win rate)
+- ✅ Add financial health scorecard (top 10, profitability + liquidity)
+- ✅ Automatic detection of enhanced columns
+- ✅ 10 comprehensive tests added (70 total tests passing)
+
+**Files created:**
+- ✅ Enhanced `_enhanced_data_summaries()` function in report.py
+- ✅ tests/test_report_enhanced.py (10 tests)
+
+**Output:** Enhanced sections automatically added to `data/latest/report.md` when enhanced data present
+
+#### 5.2 Interactive Dashboards (Future)
 **New directory:** `dashboards/`
 
 **Tools:** Streamlit, Plotly, or Dash
@@ -187,16 +203,7 @@ python -m finviz_weekly screen --out data
 - [ ] Financial health distribution charts
 - [ ] Portfolio construction tool
 
-#### 5.2 Enhanced Reports
-**File:** `src/finviz_weekly/report.py`
-
-**Enhancements:**
-- [ ] Add insider trading summary section
-- [ ] Add earnings quality metrics
-- [ ] Add financial health scorecard
-- [ ] Generate PDF reports with charts
-
-#### 5.3 Email/Slack Alerts
+#### 5.3 Email/Slack Alerts (Future)
 **New file:** `src/finviz_weekly/alerts.py`
 
 **Alert triggers:**

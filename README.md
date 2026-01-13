@@ -125,9 +125,13 @@ Outputs are written to:
 - `data/history/finviz_fundamentals_history.parquet` (append-only with `as_of_date`)
 
 ## Weekly workflow
-1. Run scraping (`python -m finviz_weekly run ...`).
+1. Run scraping with enhanced data (`python -m finviz_weekly run --include-insider --include-earnings --include-financials ...`).
 2. Run screening (`python -m finviz_weekly screen --out data`). This writes `finviz_scored.parquet`/`csv.gz` plus candidates and conviction lists.
-3. Run the debate layer (research on by default, safe for Brave free tier with 12 queries/ticker):  
+3. **NEW:** Enhanced reports automatically generated in `data/latest/report.md` with:
+   - 🏢 Insider trading highlights (top buying/selling)
+   - 📈 Earnings quality insights (consistent beaters)
+   - 💪 Financial health rankings (profitability + liquidity)
+4. Run the debate layer (research on by default, safe for Brave free tier with 12 queries/ticker):
    `python -m finviz_weekly debate --out data --input candidates --max-tickers 20`
    - Env vars: `BRAVE_API_KEY` (primary search), optional `GOOGLE_CSE_API_KEY` + `GOOGLE_CSE_CX` (fallback), `OPENAI_API_KEY` and `OPENAI_MODEL` (default `gpt-5-mini`). Use `--provider mock` to force offline mode for tests.
    - Debate outputs: `data/debate/YYYY-MM-DD/{ticker}.json`, `{ticker}_evidence.json`, `debate_results.csv`, `debate_report.md`.
