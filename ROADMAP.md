@@ -104,38 +104,38 @@ if config.include_insider:
 
 ---
 
-### 🚀 Phase 4: Enhanced Scoring & Strategy (NEXT - 2-4 weeks)
+### 🚀 Phase 4: Enhanced Scoring & Strategy (✅ COMPLETED!)
 
 **Priority: HIGH** | **Effort: High**
 
-#### 4.1 Integrate New Data into Scoring Model
-**File:** `src/finviz_weekly/score.py`
+#### 4.1 Integrate New Data into Scoring Model ✅
+**File:** `src/finviz_weekly/screen.py`
 
 **New scoring factors:**
-- [ ] **Insider Score (0-10):** Reward net buying, penalize net selling
-- [ ] **Earnings Quality Score (0-10):** Reward consistent positive earnings surprises
-- [ ] **Financial Health Score (0-10):** ROE, margins, liquidity ratios
-- [ ] Update `total_score` to include new factors with configurable weights
+- ✅ **Insider Score (0-100):** Reward net buying, penalize net selling
+- ✅ **Earnings Quality Score (0-100):** Reward consistent positive earnings surprises
+- ✅ **Financial Health Score (0-100):** ROE, margins, liquidity ratios
+- ✅ Enhanced composite scores with configurable weights
 
-**Example:**
-```python
-def calculate_enhanced_score(row):
-    # Existing scores (60% weight)
-    base_score = row['total_score'] * 0.6
+**New themes implemented:**
+- ✅ `insider_momentum` - 40% insider + 30% momentum + 20% quality + 10% value
+- ✅ `earnings_surprise` - 40% earnings + 30% quality + 20% growth + 10% momentum
+- ✅ `quality_growth_enhanced` - 35% financial health + 30% quality + 25% growth + 10% value
+- ✅ `enhanced_master` - Adaptive composite of all available enhanced factors
 
-    # New scores (40% weight)
-    insider_score = calculate_insider_score(row['insider_net_value'])
-    earnings_score = calculate_earnings_score(row['earnings_avg_alpha'])
-    financial_score = calculate_financial_score(row['roe'], row['net_margin'])
+**Files created:**
+- ✅ `src/finviz_weekly/score_enhanced.py` - Enhanced scoring algorithms
+- ✅ Enhanced scoring integrated into `src/finviz_weekly/screen.py`
+- ✅ `tests/test_screen_enhanced.py` - 10 comprehensive tests
+- ✅ `docs/ENHANCED_SCREENING.md` - Complete usage guide
 
-    return base_score + (insider_score * 0.15) + (earnings_score * 0.15) + (financial_score * 0.10)
-```
+**Test results:** 60/60 tests passing (50 original + 10 new)
 
-#### 4.2 Backtest Enhanced Strategy
+#### 4.2 Backtest Enhanced Strategy (Future)
 **File:** `src/finviz_weekly/backtest.py`
 
 **Enhancements:**
-- [ ] Add support for multi-factor backtesting
+- [ ] Add support for multi-factor backtesting with enhanced scores
 - [ ] Compare baseline strategy vs. enhanced strategy
 - [ ] Generate performance reports (Sharpe, drawdown, win rate)
 - [ ] Optimize factor weights using historical data
@@ -145,18 +145,20 @@ def calculate_enhanced_score(row):
 - [ ] Optimal weight recommendations
 - [ ] Strategy documentation
 
-#### 4.3 Create Screening Presets
-**New file:** `src/finviz_weekly/presets.py`
+#### 4.3 Screening Presets (Implemented as Dynamic Themes)
 
-**Preset strategies:**
-- [ ] **Insider Momentum:** Focus on stocks with strong insider buying
-- [ ] **Earnings Surprise:** Focus on stocks with consistent positive earnings surprises
-- [ ] **Quality Growth:** Focus on high-margin, high-ROE stocks with revenue growth
-- [ ] **Contrarian Value:** Focus on oversold quality stocks with insider buying
+**Preset strategies implemented:**
+- ✅ **Insider Momentum:** Stocks with strong insider buying + momentum
+- ✅ **Earnings Surprise:** Stocks with consistent positive earnings surprises
+- ✅ **Quality Growth Enhanced:** High-margin, high-ROE stocks with strong financials
+- ✅ **Enhanced Master:** Best combination of all enhanced factors
 
 **Usage:**
 ```bash
-python -m finviz_weekly screen --preset insider-momentum --top 30
+# Automatically detects enhanced data and creates themes
+python -m finviz_weekly screen --out data
+
+# Outputs: data/latest/top50_<theme>.csv for each theme
 ```
 
 ---

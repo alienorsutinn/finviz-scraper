@@ -75,12 +75,35 @@ python -m finviz_weekly run --mode tickers --tickers "AAPL,MSFT,GOOGL" \
 - `--include-insider` - Add insider trading data (net buying/selling)
 - `--include-earnings` - Add earnings reaction history (alpha vs SPY)
 - `--include-financials` - Add financial ratios (ROE, margins, liquidity)
-- `--enhanced-scoring` - Use enhanced scoring model (coming soon)
 
 This adds ~15 new columns to your output including:
 - `insider_net_value`, `insider_total_buys`, `insider_total_sells`
 - `earnings_avg_alpha`, `earnings_win_rate`, `earnings_total_events`
 - `net_margin`, `roe`, `roa`, `current_ratio`, `debt_to_equity`
+
+### Enhanced Screening with New Investment Themes
+
+**NEW (Phase 4):** Screening automatically detects enhanced data and creates new investment themes:
+
+```bash
+# 1. Scrape with enhanced data
+python -m finviz_weekly run --mode universe --ticker-limit 100 \
+  --include-insider --include-earnings --include-financials \
+  --out data
+
+# 2. Screen (automatically creates enhanced themes)
+python -m finviz_weekly screen --out data
+```
+
+**Enhanced themes automatically created:**
+- `insider_momentum` - Strong insider buying + momentum
+- `earnings_surprise` - Consistent earnings beats
+- `quality_growth_enhanced` - Quality + financial health
+- `enhanced_master` - All enhanced factors combined
+
+**Outputs:** `data/latest/top50_<theme>.csv` for each enhanced theme
+
+📖 **See [docs/ENHANCED_SCREENING.md](docs/ENHANCED_SCREENING.md) for complete guide with strategies and examples!**
 
 Key CLI options:
 - `--mode [universe|tickers]`

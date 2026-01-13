@@ -21,8 +21,12 @@ from typing import Dict, List, Optional, Tuple
 import pandas as pd
 
 from .valuation import add_multiples_valuation
-
 from .report import write_report
+from .score_enhanced import (
+    calculate_insider_score,
+    calculate_earnings_score,
+    calculate_financial_health_score,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -206,6 +210,88 @@ def score_snapshot(df: pd.DataFrame, *, normalize_by: str = "none") -> Tuple[pd.
         sf_score = _pct_score(out[sf_col], higher_better=True, group=group_series).fillna(0.0)
         out["score_short_squeeze"] = 0.40 * sf_score + 0.30 * out["score_oversold"] + 0.30 * out["score_momentum"]
 
+    # --- Enhanced scoring (if enhanced columns present) ---
+    has_insider = "insider_net_value" in out.columns
+    has_earnings = "earnings_avg_alpha" in out.columns
+    has_financials = "net_margin" in out.columns and "roe" in out.columns and "current_ratio" in out.columns
+
+    if has_insider or has_earnings or has_financials:
+        LOGGER.info("Enhanced data detected, calculating enhanced scores")
+
+        # Calculate individual enhanced scores (0-10 scale)
+        if has_insider:
+            out["score_insider"] = calculate_insider_score(out) * 10  # Convert to 0-100 scale
+        if has_earnings:
+            out["score_earnings"] = calculate_earnings_score(out) * 10  # Convert to 0-100 scale
+        if has_financials:
+            out["score_financial_health"] = calculate_financial_health_score(out) * 10  # Convert to 0-100 scale
+
+        # --- Enhanced composite scores ---
+        # Insider Momentum: combines insider buying with momentum
+        if has_insider:
+            out["score_insider_momentum"] = (
+                0.40 * out["score_insider"] +
+                0.30 * out["score_momentum"] +
+                0.20 * out["score_quality"] +
+                0.10 * out["score_value"]
+            )
+
+        # Earnings Surprise: focuses on stocks that consistently beat earnings
+        if has_earnings:
+            out["score_earnings_surprise"] = (
+                0.40 * out["score_earnings"] +
+                0.30 * out["score_quality"] +
+                0.20 * out["score_growth"] +
+                0.10 * out["score_momentum"]
+            )
+
+        # Quality Growth: combines financial health with growth
+        if has_financials:
+            out["score_quality_growth_enhanced"] = (
+                0.35 * out["score_financial_health"] +
+                0.30 * out["score_quality"] +
+                0.25 * out["score_growth"] +
+                0.10 * out["score_value"]
+            )
+
+        # All-in Enhanced: uses all available enhanced data
+        if has_insider and has_earnings and has_financials:
+            out["score_enhanced_master"] = (
+                0.25 * out["score_quality"] +
+                0.20 * out["score_value"] +
+                0.15 * out["score_insider"] +
+                0.15 * out["score_earnings"] +
+                0.15 * out["score_financial_health"] +
+                0.10 * out["score_growth"]
+            )
+        elif has_insider and has_earnings:
+            # Insider + Earnings only
+            out["score_enhanced_master"] = (
+                0.30 * out["score_quality"] +
+                0.25 * out["score_value"] +
+                0.20 * out["score_insider"] +
+                0.15 * out["score_earnings"] +
+                0.10 * out["score_growth"]
+            )
+        elif has_insider and has_financials:
+            # Insider + Financials only
+            out["score_enhanced_master"] = (
+                0.30 * out["score_quality"] +
+                0.25 * out["score_value"] +
+                0.20 * out["score_insider"] +
+                0.15 * out["score_financial_health"] +
+                0.10 * out["score_growth"]
+            )
+        elif has_earnings and has_financials:
+            # Earnings + Financials only
+            out["score_enhanced_master"] = (
+                0.30 * out["score_quality"] +
+                0.25 * out["score_value"] +
+                0.20 * out["score_earnings"] +
+                0.15 * out["score_financial_health"] +
+                0.10 * out["score_growth"]
+            )
+
     # Multiples-based valuation + WFV/zones (works even with only 1 snapshot date)
     out = add_multiples_valuation(out, colmap=colmap)
 
@@ -223,6 +309,16 @@ def score_snapshot(df: pd.DataFrame, *, normalize_by: str = "none") -> Tuple[pd.
         theme_defs.append(("shareholder_yield", "score_shareholder_yield"))
     if "score_short_squeeze" in out.columns:
         theme_defs.append(("short_squeeze", "score_short_squeeze"))
+
+    # Add enhanced screens if available
+    if "score_insider_momentum" in out.columns:
+        theme_defs.append(("insider_momentum", "score_insider_momentum"))
+    if "score_earnings_surprise" in out.columns:
+        theme_defs.append(("earnings_surprise", "score_earnings_surprise"))
+    if "score_quality_growth_enhanced" in out.columns:
+        theme_defs.append(("quality_growth_enhanced", "score_quality_growth_enhanced"))
+    if "score_enhanced_master" in out.columns:
+        theme_defs.append(("enhanced_master", "score_enhanced_master"))
 
     for name, score_col in theme_defs:
         ranked = out.sort_values(score_col, ascending=False, kind="mergesort").reset_index(drop=True)
