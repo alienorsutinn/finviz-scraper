@@ -80,4 +80,35 @@ def get_tickers_for_industry(
     return tickers
 
 
-__all__ = ["get_industries", "get_tickers_for_industry", "_extract_tickers_from_html"]
+def get_tickers_all(
+    session,
+    http_config: HttpConfig,
+    *,
+    ticker_limit: int | None = None,
+    page_sleep_range: tuple[float, float] = (0.8, 1.8),
+) -> List[str]:
+    """Paginate through screener results to collect all tickers (no industry filter)."""
+
+    tickers: List[str] = []
+    start = 1
+    min_sleep, max_sleep = page_sleep_range
+    while True:
+        url = f"{BASE_URL}/screener.ashx?v=111&r={start}"
+        response = request_with_retries(session, url, http_config)
+        page_tickers = _extract_tickers_from_html(response.text)
+        LOGGER.debug("All-screener offset %s found %d tickers", start, len(page_tickers))
+        if not page_tickers:
+            break
+        for t in page_tickers:
+            if t not in tickers:
+                tickers.append(t)
+            if ticker_limit and len(tickers) >= ticker_limit:
+                return tickers
+        start += 20
+        sleep_for = random.uniform(min_sleep, max_sleep)
+        time.sleep(sleep_for)
+    LOGGER.info("Collected %d tickers from all-screener", len(tickers))
+    return tickers
+
+
+__all__ = ["get_industries", "get_tickers_for_industry", "get_tickers_all", "_extract_tickers_from_html"]

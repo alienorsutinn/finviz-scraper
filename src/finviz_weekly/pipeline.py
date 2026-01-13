@@ -63,7 +63,7 @@ def build_universe(session, config: AppConfig) -> List[str]:
 
         tickers_all = get_tickers_all(
             session,
-            http_config,
+            config.http,
             ticker_limit=limit,
             page_sleep_range=page_sleep_range,
         )
