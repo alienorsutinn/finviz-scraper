@@ -6,3 +6,7 @@ __pycache__
 *.parquet
 *.csv
 data/runs/
+*.egg-info
+dist/
+build/
+*.egg
