@@ -180,3 +180,39 @@ Hooks include:
 - Security checks with bandit
 - Spell checking
 
+
+## 🆕 New: Additional Data Sources
+
+We now support scraping **insider trading**, **earnings reactions**, and **detailed financial statements**!
+
+### Insider Trading
+```python
+from finviz_weekly.insider import scrape_insider_trading, aggregate_insider_by_ticker
+
+# Get insider trades for a ticker
+trades = scrape_insider_trading("AAPL", session, http_config)
+stats = aggregate_insider_by_ticker(trades)
+print(f"Net insider value: ${stats['AAPL']['net_value']:,.0f}")
+```
+
+### Earnings Reactions
+```python
+from finviz_weekly.earnings import scrape_earnings_reactions, calculate_earnings_statistics
+
+# Get historical earnings reactions
+earnings = scrape_earnings_reactions("TSLA", session, http_config)
+stats = calculate_earnings_statistics(earnings)
+print(f"Average earnings reaction: {stats['avg_day_0_change']:.2%}")
+```
+
+### Enhanced Financials
+```python
+from finviz_weekly.financials import scrape_financial_statements, calculate_financial_ratios
+
+# Get detailed financial statements
+statements = scrape_financial_statements("AAPL", session, http_config)
+ratios = calculate_financial_ratios(statements)
+print(f"ROE: {ratios['roe']:.2%}, Debt/Equity: {ratios['debt_to_equity']:.2f}x")
+```
+
+📖 **Full Documentation:** See [docs/NEW_SCRAPERS.md](docs/NEW_SCRAPERS.md) for complete guide and strategy examples.
