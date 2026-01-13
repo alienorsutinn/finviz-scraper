@@ -26,6 +26,8 @@ A production-grade Python system for scraping, scoring, and analyzing stock fund
 
 ## 🚀 Quick Start
 
+**👉 New to this project? See [QUICKSTART.md](QUICKSTART.md) for a beginner-friendly guide with examples!**
+
 ### Prerequisites
 - Python 3.11 or higher
 - Git
@@ -185,34 +187,46 @@ Hooks include:
 
 We now support scraping **insider trading**, **earnings reactions**, and **detailed financial statements**!
 
-### Insider Trading
+### CLI Usage
+
+```bash
+# Insider trading
+python -m finviz_weekly insider --ticker AAPL
+python -m finviz_weekly insider --tickers AAPL,TSLA,MSFT --output-format csv
+
+# Earnings reactions
+python -m finviz_weekly earnings --ticker AAPL
+python -m finviz_weekly earnings --tickers AAPL,TSLA --output-format json
+
+# Financial statements
+python -m finviz_weekly financials --ticker AAPL
+python -m finviz_weekly financials --tickers-file watchlist.txt
+```
+
+### Python API
+
 ```python
 from finviz_weekly.insider import scrape_insider_trading, aggregate_insider_by_ticker
+from finviz_weekly.earnings import scrape_earnings_reactions, aggregate_earnings_stats
+from finviz_weekly.financials import scrape_financial_statements, calculate_financial_ratios
 
-# Get insider trades for a ticker
+# Insider trading
 trades = scrape_insider_trading("AAPL", session, http_config)
 stats = aggregate_insider_by_ticker(trades)
 print(f"Net insider value: ${stats['AAPL']['net_value']:,.0f}")
-```
 
-### Earnings Reactions
-```python
-from finviz_weekly.earnings import scrape_earnings_reactions, calculate_earnings_statistics
-
-# Get historical earnings reactions
+# Earnings reactions
 earnings = scrape_earnings_reactions("TSLA", session, http_config)
-stats = calculate_earnings_statistics(earnings)
-print(f"Average earnings reaction: {stats['avg_day_0_change']:.2%}")
-```
+stats = aggregate_earnings_stats(earnings)
+print(f"Average earnings alpha: {stats['TSLA']['avg_day_0_alpha']:.2%}")
 
-### Enhanced Financials
-```python
-from finviz_weekly.financials import scrape_financial_statements, calculate_financial_ratios
-
-# Get detailed financial statements
+# Enhanced financials
 statements = scrape_financial_statements("AAPL", session, http_config)
 ratios = calculate_financial_ratios(statements)
 print(f"ROE: {ratios['roe']:.2%}, Debt/Equity: {ratios['debt_to_equity']:.2f}x")
 ```
 
-📖 **Full Documentation:** See [docs/NEW_SCRAPERS.md](docs/NEW_SCRAPERS.md) for complete guide and strategy examples.
+📖 **Full Documentation:**
+- See [QUICKSTART.md](QUICKSTART.md) for step-by-step examples
+- See [docs/NEW_SCRAPERS.md](docs/NEW_SCRAPERS.md) for complete guide and strategy examples
+- See [examples/integrate_new_scrapers.py](examples/integrate_new_scrapers.py) for integration patterns

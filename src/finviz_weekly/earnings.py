@@ -241,7 +241,50 @@ def calculate_earnings_statistics(earnings_data: List[Dict]) -> Dict:
     return stats
 
 
+def aggregate_earnings_stats(earnings_data: List[Dict]) -> Dict[str, Dict]:
+    """
+    Aggregate earnings statistics by ticker.
+
+    Args:
+        earnings_data: List of earnings events from multiple tickers
+
+    Returns:
+        Dictionary mapping ticker to earnings statistics
+    """
+    from collections import defaultdict
+
+    # Group by ticker
+    by_ticker = defaultdict(list)
+    for event in earnings_data:
+        ticker = event.get("ticker")
+        if ticker:
+            by_ticker[ticker].append(event)
+
+    # Calculate stats for each ticker
+    result = {}
+    for ticker, events in by_ticker.items():
+        stats = calculate_earnings_statistics(events)
+
+        # Add ticker-specific aggregations
+        result[ticker] = {
+            "total_events": stats["total_events"],
+            "avg_day_0_change": stats["avg_day_0_change"],
+            "avg_week_1_change": stats["avg_week_1_change"],
+            "avg_day_0_alpha": stats["avg_alpha_day_0"],
+            "avg_week_1_alpha": stats["avg_alpha_week_1"],
+            "avg_rsi": stats["avg_rsi"],
+            "positive_reactions": stats["positive_reactions"],
+            "negative_reactions": stats["negative_reactions"],
+            "positive_reaction_pct": (
+                stats["positive_reactions"] / stats["total_events"] * 100 if stats["total_events"] > 0 else 0
+            ),
+        }
+
+    return result
+
+
 __all__ = [
     "scrape_earnings_reactions",
     "calculate_earnings_statistics",
+    "aggregate_earnings_stats",
 ]

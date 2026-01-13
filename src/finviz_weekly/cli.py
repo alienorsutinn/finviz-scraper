@@ -13,6 +13,9 @@ from .screen import run_screening
 from .learn import train_weights
 from .report import write_report_from_latest
 from .debate import run_debate
+from .insider import scrape_insider_trading, aggregate_insider_by_ticker
+from .earnings import scrape_earnings_reactions, aggregate_earnings_stats
+from .financials import scrape_financial_statements, calculate_financial_ratios
 
 
 LOGGER = logging.getLogger(__name__)
@@ -25,7 +28,7 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
         "command",
         nargs="?",
         default="run",
-        choices=["run", "screen", "train", "report", "debate"],
+        choices=["run", "screen", "train", "report", "debate", "insider", "earnings", "financials"],
         help="Command to execute (default: run).",
     )
 
@@ -95,6 +98,10 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--min-rows-per-group", type=int, default=250)
     parser.add_argument("--group-col", type=str, default="sector")
 
+    # new scraper args (insider, earnings, financials)
+    parser.add_argument("--ticker", help="Single ticker to scrape")
+    parser.add_argument("--output-format", choices=["json", "csv"], default="json")
+
     return parser.parse_args(argv)
 
 
@@ -107,6 +114,134 @@ def _load_tickers(args: argparse.Namespace) -> list[str]:
         if path.exists():
             tickers.extend([t.strip().upper() for t in path.read_text().splitlines() if t.strip()])
     return tickers
+
+
+def _run_insider_command(args: argparse.Namespace) -> None:
+    """Run insider trading scraper command."""
+    import json
+    import pandas as pd
+
+    tickers = []
+    if args.ticker:
+        tickers = [args.ticker.upper()]
+    elif args.tickers:
+        tickers = [t.strip().upper() for t in args.tickers.split(",") if t.strip()]
+    elif args.tickers_file:
+        path = Path(args.tickers_file)
+        if path.exists():
+            tickers = [t.strip().upper() for t in path.read_text().splitlines() if t.strip()]
+
+    if not tickers:
+        raise SystemExit("Error: Must provide --ticker, --tickers, or --tickers-file")
+
+    LOGGER.info("Scraping insider trading for %d tickers", len(tickers))
+    session = create_session(env_config().http)
+
+    all_transactions = []
+    for ticker in tickers:
+        try:
+            transactions = scrape_insider_trading(ticker, session, env_config().http)
+            all_transactions.extend(transactions)
+            LOGGER.info("  %s: %d transactions", ticker, len(transactions))
+        except Exception as e:
+            LOGGER.error("  %s: %s", ticker, e)
+
+    if not all_transactions:
+        LOGGER.warning("No insider transactions found")
+        return
+
+    # Aggregate
+    stats = aggregate_insider_by_ticker(all_transactions)
+
+    # Output
+    if args.output_format == "json":
+        print(json.dumps(stats, indent=2))
+    else:
+        df = pd.DataFrame(stats).T
+        print(df.to_csv())
+
+
+def _run_earnings_command(args: argparse.Namespace) -> None:
+    """Run earnings reactions scraper command."""
+    import json
+    import pandas as pd
+
+    tickers = []
+    if args.ticker:
+        tickers = [args.ticker.upper()]
+    elif args.tickers:
+        tickers = [t.strip().upper() for t in args.tickers.split(",") if t.strip()]
+    elif args.tickers_file:
+        path = Path(args.tickers_file)
+        if path.exists():
+            tickers = [t.strip().upper() for t in path.read_text().splitlines() if t.strip()]
+
+    if not tickers:
+        raise SystemExit("Error: Must provide --ticker, --tickers, or --tickers-file")
+
+    LOGGER.info("Scraping earnings reactions for %d tickers", len(tickers))
+    session = create_session(env_config().http)
+
+    all_earnings = []
+    for ticker in tickers:
+        try:
+            earnings = scrape_earnings_reactions(ticker, session, env_config().http)
+            all_earnings.extend(earnings)
+            LOGGER.info("  %s: %d earnings events", ticker, len(earnings))
+        except Exception as e:
+            LOGGER.error("  %s: %s", ticker, e)
+
+    if not all_earnings:
+        LOGGER.warning("No earnings events found")
+        return
+
+    # Aggregate
+    stats = aggregate_earnings_stats(all_earnings)
+
+    # Output
+    if args.output_format == "json":
+        print(json.dumps(stats, indent=2))
+    else:
+        df = pd.DataFrame(stats).T
+        print(df.to_csv())
+
+
+def _run_financials_command(args: argparse.Namespace) -> None:
+    """Run financial statements scraper command."""
+    import json
+
+    tickers = []
+    if args.ticker:
+        tickers = [args.ticker.upper()]
+    elif args.tickers:
+        tickers = [t.strip().upper() for t in args.tickers.split(",") if t.strip()]
+    elif args.tickers_file:
+        path = Path(args.tickers_file)
+        if path.exists():
+            tickers = [t.strip().upper() for t in path.read_text().splitlines() if t.strip()]
+
+    if not tickers:
+        raise SystemExit("Error: Must provide --ticker, --tickers, or --tickers-file")
+
+    LOGGER.info("Scraping financial statements for %d tickers", len(tickers))
+    session = create_session(env_config().http)
+
+    results = {}
+    for ticker in tickers:
+        try:
+            statements = scrape_financial_statements(ticker, session, env_config().http)
+            ratios = calculate_financial_ratios(statements)
+            results[ticker] = {"statements": statements, "ratios": ratios}
+            LOGGER.info("  %s: %d ratios calculated", ticker, len(ratios))
+        except Exception as e:
+            LOGGER.error("  %s: %s", ticker, e)
+
+    if not results:
+        LOGGER.warning("No financial data found")
+        return
+
+    # Output (JSON only for complex nested data)
+    print(json.dumps(results, indent=2))
 
 
 def main(argv: List[str] | None = None) -> None:
@@ -158,6 +293,18 @@ def main(argv: List[str] | None = None) -> None:
             model=args.model,
             verbose=bool(args.verbose),
         )
+        return
+
+    if args.command == "insider":
+        _run_insider_command(args)
+        return
+
+    if args.command == "earnings":
+        _run_earnings_command(args)
+        return
+
+    if args.command == "financials":
+        _run_financials_command(args)
         return
 
     # run
