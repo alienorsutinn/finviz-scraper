@@ -120,6 +120,7 @@ def _run_insider_command(args: argparse.Namespace) -> None:
     """Run insider trading scraper command."""
     import json
     import pandas as pd
+    from .config import HttpConfig
 
     tickers = []
     if args.ticker:
@@ -135,12 +136,13 @@ def _run_insider_command(args: argparse.Namespace) -> None:
         raise SystemExit("Error: Must provide --ticker, --tickers, or --tickers-file")
 
     LOGGER.info("Scraping insider trading for %d tickers", len(tickers))
-    session = create_session(env_config().http)
+    http_config = HttpConfig(proxy=None)
+    session = create_session(http_config)
 
     all_transactions = []
     for ticker in tickers:
         try:
-            transactions = scrape_insider_trading(ticker, session, env_config().http)
+            transactions = scrape_insider_trading(ticker, session, http_config)
             all_transactions.extend(transactions)
             LOGGER.info("  %s: %d transactions", ticker, len(transactions))
         except Exception as e:
@@ -165,6 +167,7 @@ def _run_earnings_command(args: argparse.Namespace) -> None:
     """Run earnings reactions scraper command."""
     import json
     import pandas as pd
+    from .config import HttpConfig
 
     tickers = []
     if args.ticker:
@@ -180,12 +183,13 @@ def _run_earnings_command(args: argparse.Namespace) -> None:
         raise SystemExit("Error: Must provide --ticker, --tickers, or --tickers-file")
 
     LOGGER.info("Scraping earnings reactions for %d tickers", len(tickers))
-    session = create_session(env_config().http)
+    http_config = HttpConfig(proxy=None)
+    session = create_session(http_config)
 
     all_earnings = []
     for ticker in tickers:
         try:
-            earnings = scrape_earnings_reactions(ticker, session, env_config().http)
+            earnings = scrape_earnings_reactions(ticker, session, http_config)
             all_earnings.extend(earnings)
             LOGGER.info("  %s: %d earnings events", ticker, len(earnings))
         except Exception as e:
@@ -209,6 +213,7 @@ def _run_earnings_command(args: argparse.Namespace) -> None:
 def _run_financials_command(args: argparse.Namespace) -> None:
     """Run financial statements scraper command."""
     import json
+    from .config import HttpConfig
 
     tickers = []
     if args.ticker:
@@ -224,12 +229,13 @@ def _run_financials_command(args: argparse.Namespace) -> None:
         raise SystemExit("Error: Must provide --ticker, --tickers, or --tickers-file")
 
     LOGGER.info("Scraping financial statements for %d tickers", len(tickers))
-    session = create_session(env_config().http)
+    http_config = HttpConfig(proxy=None)
+    session = create_session(http_config)
 
     results = {}
     for ticker in tickers:
         try:
-            statements = scrape_financial_statements(ticker, session, env_config().http)
+            statements = scrape_financial_statements(ticker, session, http_config)
             ratios = calculate_financial_ratios(statements)
             results[ticker] = {"statements": statements, "ratios": ratios}
             LOGGER.info("  %s: %d ratios calculated", ticker, len(ratios))
