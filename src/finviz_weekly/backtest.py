@@ -18,6 +18,7 @@ class BacktestConfig:
 
     start_date: str  # ISO format YYYY-MM-DD
     end_date: str  # ISO format YYYY-MM-DD
+    score_column: str = "total_score"  # Column to rank stocks by
     top_n: int = 20  # Number of top-ranked stocks to hold
     rebalance_days: int = 7  # Rebalance every N days
     min_price: float = 5.0  # Minimum price filter
@@ -103,12 +104,12 @@ class Backtester:
             # Apply filters
             snapshot = self._apply_filters(snapshot, config)
 
-            # Get top N by total_score
-            if "total_score" not in snapshot.columns:
-                LOGGER.warning(f"No total_score column on {date}, skipping")
+            # Get top N by configured score column
+            if config.score_column not in snapshot.columns:
+                LOGGER.warning(f"No {config.score_column} column on {date}, skipping")
                 continue
 
-            top_stocks = snapshot.nlargest(config.top_n, "total_score")
+            top_stocks = snapshot.nlargest(config.top_n, config.score_column)
 
             # Rebalance portfolio
             new_portfolio, new_trades = self._rebalance(
@@ -147,8 +148,8 @@ class Backtester:
             df = df[pd.to_numeric(df["price"], errors="coerce") >= config.min_price]
 
         # Remove missing scores
-        if "total_score" in df.columns:
-            df = df[df["total_score"].notna()]
+        if config.score_column in df.columns:
+            df = df[df[config.score_column].notna()]
 
         return df
 
@@ -310,6 +311,68 @@ def run_backtest_cli(
     print(f"Max Drawdown:    {results.max_drawdown:>8.1%}")
     print(f"Trades:          {results.num_trades:>8}")
     print("=" * 60)
+
+
+def compare_strategies(
+    history_path: Path,
+    start_date: str,
+    end_date: str,
+    strategies: List[tuple[str, str]],
+    top_n: int = 20,
+    rebalance_days: int = 7,
+) -> pd.DataFrame:
+    """
+    Compare multiple scoring strategies on historical data.
+
+    Args:
+        history_path: Path to history file
+        start_date: Start date (YYYY-MM-DD)
+        end_date: End date (YYYY-MM-DD)
+        strategies: List of (strategy_name, score_column) tuples
+        top_n: Number of stocks to hold
+        rebalance_days: Days between rebalances
+
+    Returns:
+        DataFrame comparing strategy performance
+    """
+    backtester = Backtester(history_path)
+    results = []
+
+    for strategy_name, score_column in strategies:
+        LOGGER.info(f"\nBacktesting strategy: {strategy_name} (using {score_column})")
+
+        config = BacktestConfig(
+            start_date=start_date,
+            end_date=end_date,
+            score_column=score_column,
+            top_n=top_n,
+            rebalance_days=rebalance_days,
+        )
+
+        try:
+            result = backtester.run(config)
+            results.append({
+                "strategy": strategy_name,
+                "score_column": score_column,
+                "total_return": result.total_return,
+                "annual_return": result.annual_return,
+                "sharpe_ratio": result.sharpe_ratio,
+                "max_drawdown": result.max_drawdown,
+                "num_trades": len(result.trades),
+            })
+        except Exception as e:
+            LOGGER.error(f"Failed to backtest {strategy_name}: {e}")
+            results.append({
+                "strategy": strategy_name,
+                "score_column": score_column,
+                "total_return": None,
+                "annual_return": None,
+                "sharpe_ratio": None,
+                "max_drawdown": None,
+                "num_trades": None,
+            })
+
+    return pd.DataFrame(results)
 
 
 if __name__ == "__main__":

@@ -131,19 +131,27 @@ if config.include_insider:
 
 **Test results:** 60/60 tests passing (50 original + 10 new)
 
-#### 4.2 Backtest Enhanced Strategy (Future)
+#### 4.2 Backtest Enhanced Strategy (✅ Framework Ready, Data Pending)
 **File:** `src/finviz_weekly/backtest.py`
 
 **Enhancements:**
-- [ ] Add support for multi-factor backtesting with enhanced scores
-- [ ] Compare baseline strategy vs. enhanced strategy
-- [ ] Generate performance reports (Sharpe, drawdown, win rate)
-- [ ] Optimize factor weights using historical data
+- ✅ Add support for any score column (not just total_score)
+- ✅ Added `score_column` parameter to BacktestConfig
+- ✅ Created `compare_strategies()` function for multi-strategy comparison
+- ✅ Comprehensive backtesting documentation created
 
 **Deliverables:**
-- [ ] Backtest report comparing strategies
-- [ ] Optimal weight recommendations
-- [ ] Strategy documentation
+- ✅ Flexible backtesting framework supporting any score column
+- ✅ Strategy comparison functionality
+- ✅ Comprehensive guide: docs/BACKTESTING.md
+- ⏳ Enhanced strategy backtest results (requires 3-6 months of enhanced history)
+
+**Limitation:** Enhanced scores (insider_momentum, earnings_surprise, etc.) require historical data with enhanced columns. Need to collect 3-6 months of enhanced data before meaningful backtests possible.
+
+**Next Steps:**
+- [ ] Collect enhanced data weekly for 3-6 months
+- [ ] Run comparative backtests once sufficient history exists
+- [ ] Optimize enhanced score weights based on backtest results
 
 #### 4.3 Screening Presets (Implemented as Dynamic Themes)
 

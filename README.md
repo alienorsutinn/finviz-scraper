@@ -196,23 +196,43 @@ passed = check_latest_data()
 
 ### Backtesting
 
-Test your scoring strategy on historical data:
+Test scoring strategies on historical data:
 
 ```bash
-# Run backtest
+# Run backtest (any score column supported)
 python -m finviz_weekly.backtest \
-  --history data/history/finviz_fundamentals_history.parquet \
+  --history data/history/finviz_scored_history.parquet \
   --start 2024-01-01 \
   --end 2025-01-01 \
   --top-n 20 \
   --rebalance-days 7
 ```
 
+**Compare multiple strategies:**
+```python
+from finviz_weekly.backtest import compare_strategies
+
+strategies = [
+    ("Master", "score_master"),
+    ("Quality Value", "score_quality_value"),
+    ("Insider Momentum", "score_insider_momentum"),  # Enhanced
+    ("Earnings Surprise", "score_earnings_surprise"),  # Enhanced
+]
+
+results = compare_strategies(
+    Path("data/history/finviz_scored_history.parquet"),
+    "2024-01-01", "2025-01-01",
+    strategies, top_n=20
+)
+```
+
 Results include:
 - Total and annual returns
 - Sharpe ratio
 - Maximum drawdown
-- Win rate and trade statistics
+- Number of trades
+
+📖 **See [docs/BACKTESTING.md](docs/BACKTESTING.md) for complete backtesting guide!**
 
 ### Pre-commit Hooks
 

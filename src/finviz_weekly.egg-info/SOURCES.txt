@@ -6,6 +6,7 @@ src/finviz_weekly/backtest.py
 src/finviz_weekly/cli.py
 src/finviz_weekly/config.py
 src/finviz_weekly/earnings.py
+src/finviz_weekly/enhance.py
 src/finviz_weekly/financials.py
 src/finviz_weekly/fundamentals.py
 src/finviz_weekly/http.py
@@ -17,6 +18,7 @@ src/finviz_weekly/prices.py
 src/finviz_weekly/quality.py
 src/finviz_weekly/report.py
 src/finviz_weekly/riskoff_ranked_export.py
+src/finviz_weekly/score_enhanced.py
 src/finviz_weekly/screen.py
 src/finviz_weekly/screener.py
 src/finviz_weekly/storage.py
@@ -47,11 +49,13 @@ src/finviz_weekly/debate/search/google.py
 src/finviz_weekly/debate/search/mock.py
 src/finviz_weekly/debate/search/router.py
 tests/test_debate_mock.py
+tests/test_enhance.py
 tests/test_integration.py
 tests/test_new_scrapers.py
 tests/test_packet_builder.py
 tests/test_parse.py
 tests/test_pipeline_merge.py
+tests/test_screen_enhanced.py
 tests/test_screen_learned.py
 tests/test_screener_parsing.py
 tests/test_search_router.py

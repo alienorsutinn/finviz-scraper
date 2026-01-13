@@ -79,6 +79,33 @@ Discover the universe, limited to the first 500 tickers, at a gentle rate:
 python -m finviz_weekly run --mode universe --ticker-limit 500 --rate-per-sec 0.5 --out data
 ```
 
+### Enhanced Pipeline with Insider/Earnings/Financials
+
+**NEW:** Scrape additional data sources in one command:
+
+```bash
+# Run with all enhanced data sources
+python -m finviz_weekly run --mode universe --ticker-limit 100 \
+  --include-insider --include-earnings --include-financials \
+  --out data
+
+# Or selectively enable specific sources
+python -m finviz_weekly run --mode tickers --tickers "AAPL,MSFT,GOOGL" \
+  --include-insider --include-earnings \
+  --out data
+```
+
+**Enhanced flags:**
+- `--include-insider` - Add insider trading data (net buying/selling)
+- `--include-earnings` - Add earnings reaction history (alpha vs SPY)
+- `--include-financials` - Add financial ratios (ROE, margins, liquidity)
+- `--enhanced-scoring` - Use enhanced scoring model (coming soon)
+
+This adds ~15 new columns to your output including:
+- `insider_net_value`, `insider_total_buys`, `insider_total_sells`
+- `earnings_avg_alpha`, `earnings_win_rate`, `earnings_total_events`
+- `net_margin`, `roe`, `roa`, `current_ratio`, `debt_to_equity`
+
 Key CLI options:
 - `--mode [universe|tickers]`
 - `--tickers "AAPL,MSFT"` or `--tickers-file config/tickers.txt`
