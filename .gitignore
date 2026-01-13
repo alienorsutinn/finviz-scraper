@@ -10,3 +10,5 @@ data/runs/
 dist/
 build/
 *.egg
+.env
+.pytest_cache

@@ -1,12 +1,35 @@
 # Finviz Weekly Scraper
 
-This repository converts the original `finvizdataipynb.ipynb` notebook logic into a reusable Python package and GitHub Actions workflow that scrapes Finviz fundamentals on a weekly schedule.
+[![CI](https://github.com/alienorsutinn/finviz-scraper/actions/workflows/finviz-snapshot.yml/badge.svg)](https://github.com/alienorsutinn/finviz-scraper/actions/workflows/finviz-snapshot.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Features
-- Discover industries and tickers from the Finviz screener (no Selenium).
-- Scrape fundamentals for each ticker using `finvizfinance` with polite rate limiting, retries, and random user agents.
-- Store outputs as Parquet and CSV under dated run folders plus rolling latest and append-only history.
-- Weekly GitHub Actions workflow (Monday 01:00 UTC) with optional commit of generated data when `PERSIST_RESULTS=true`.
+A production-grade Python system for scraping, scoring, and analyzing stock fundamentals from Finviz.com. Combines traditional quantitative screening with AI-powered research synthesis to identify investment candidates.
+
+## ✨ Features
+
+### Core Functionality
+- **Automated Stock Screening** - Scrapes 500-8000+ US equities from Finviz
+- **Multi-Factor Scoring** - Quality, value, risk, growth, momentum, and oversold factors
+- **AI Research Layer** - LLM-powered investment research using GPT-4/Claude
+- **Crash-Safe Pipeline** - Resumable checkpoints for interrupted scrapes
+- **Historical Tracking** - Append-only history for backtesting and ML training
+- **Data Quality Monitoring** - Automated validation and outlier detection
+
+### Advanced Features
+- **Backtesting Framework** - Test strategies on historical data
+- **Machine Learning** - Learn optimal factor weights from data
+- **Docker Support** - Containerized deployment
+- **GitHub Actions CI/CD** - Automated bi-daily runs
+- **REST API Ready** - Export data in Parquet/CSV/JSON
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Python 3.11 or higher
+- Git
+- (Optional) Docker for containerized deployment
 
 ## Installation
 
@@ -71,3 +94,89 @@ The workflow in `.github/workflows/weekly.yml` runs every Monday at 01:00 UTC (a
 - Scraping is subject to website changes; use conservative rate limits.
 - Tests avoid network calls by using fixtures and monkeypatching.
 - Python 3.11 is required.
+
+## 🐳 Docker Usage
+
+### Run with Docker Compose
+
+```bash
+# Copy environment file
+cp .env.example .env
+# Edit .env with your API keys
+
+# Run scraper
+docker-compose up scraper
+
+# Run full workflow (scrape + screen)
+docker-compose up full-workflow
+
+# Run tests
+docker-compose up test
+
+# Development mode
+docker-compose up dev
+```
+
+### Build and Run Manually
+
+```bash
+# Build image
+docker build -t finviz-scraper .
+
+# Run scraper
+docker run -v $(pwd)/data:/app/data finviz-scraper
+```
+
+## 📊 New Features
+
+### Data Quality Monitoring
+
+Automatically validate scraped data:
+
+```bash
+# Check latest data quality
+python -m finviz_weekly.quality
+
+# Or use in Python
+from finviz_weekly.quality import check_latest_data
+passed = check_latest_data()
+```
+
+### Backtesting
+
+Test your scoring strategy on historical data:
+
+```bash
+# Run backtest
+python -m finviz_weekly.backtest \
+  --history data/history/finviz_fundamentals_history.parquet \
+  --start 2024-01-01 \
+  --end 2025-01-01 \
+  --top-n 20 \
+  --rebalance-days 7
+```
+
+Results include:
+- Total and annual returns
+- Sharpe ratio
+- Maximum drawdown
+- Win rate and trade statistics
+
+### Pre-commit Hooks
+
+Install code quality hooks:
+
+```bash
+pip install pre-commit
+pre-commit install
+pre-commit run --all-files
+```
+
+Hooks include:
+- Black code formatting
+- isort import sorting
+- flake8 linting
+- mypy type checking
+- Security checks with bandit
+- Spell checking
+

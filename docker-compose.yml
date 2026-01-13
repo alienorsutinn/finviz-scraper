@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  # Production scraper service
+  scraper:
+    build:
+      context: .
+      target: production
+    image: finviz-scraper:latest
+    container_name: finviz-scraper
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    command: >
+      python -m finviz_weekly run
+      --mode universe
+      --ticker-limit 500
+      --out /app/data
+
+  # Run scraping and screening workflow
+  full-workflow:
+    build:
+      context: .
+      target: production
+    image: finviz-scraper:latest
+    container_name: finviz-full-workflow
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+    command: |
+      sh -c "
+        echo '=== Running scraper ===' &&
+        python -m finviz_weekly run --mode universe --ticker-limit 500 --out /app/data &&
+        echo '=== Running screening ===' &&
+        python -m finviz_weekly screen --out /app/data --top 80 &&
+        echo '=== Workflow complete ==='
+      "
+
+  # Development environment
+  dev:
+    build:
+      context: .
+      target: development
+    image: finviz-scraper:dev
+    container_name: finviz-scraper-dev
+    env_file:
+      - .env
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+      - ./data:/app/data
+    working_dir: /app
+    stdin_open: true
+    tty: true
+    command: /bin/bash
+
+  # Run tests
+  test:
+    build:
+      context: .
+      target: development
+    image: finviz-scraper:dev
+    container_name: finviz-scraper-test
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+    working_dir: /app
+    command: pytest tests/ -v --cov=src/finviz_weekly
+
+  # AI debate layer (separate service to avoid running scraper every time)
+  debate:
+    build:
+      context: .
+      target: production
+    image: finviz-scraper:latest
+    container_name: finviz-debate
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+    command: >
+      python -m finviz_weekly debate
+      --out /app/data
+      --input candidates
+      --max-tickers 20
+
+volumes:
+  data:
+    driver: local
