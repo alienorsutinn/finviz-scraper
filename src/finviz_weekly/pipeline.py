@@ -23,6 +23,7 @@ from .storage import (
     update_latest,
     write_meta,
 )
+from .enhance import scrape_enhanced_data, merge_enhanced_data
 
 LOGGER = logging.getLogger(__name__)
 
@@ -248,6 +249,29 @@ def execute(session, config: AppConfig) -> pd.DataFrame:
         write_meta(run_dir, {"as_of": as_of.isoformat(), "interrupted": True, "rows": int(len(df))})
         LOGGER.warning("Partial saved to %s", run_dir)
         return df
+
+    # Enhanced data scraping (if enabled)
+    if config.run.include_insider or config.run.include_earnings or config.run.include_financials:
+        LOGGER.info("Enhanced data scraping enabled")
+
+        # Get list of tickers from the dataframe
+        if "ticker" in df.columns and len(df) > 0:
+            tickers_list = df["ticker"].tolist()
+            LOGGER.info("Scraping enhanced data for %d tickers", len(tickers_list))
+
+            enhanced_data = scrape_enhanced_data(
+                tickers=tickers_list,
+                session=session,
+                http_config=config.http,
+                include_insider=config.run.include_insider,
+                include_earnings=config.run.include_earnings,
+                include_financials=config.run.include_financials,
+            )
+
+            df = merge_enhanced_data(df, enhanced_data)
+            LOGGER.info("Enhanced data merged successfully")
+        else:
+            LOGGER.warning("No tickers found in dataframe, skipping enhanced data scraping")
 
     # final outputs
     save_final_outputs(df, run_dir, config.run.formats)

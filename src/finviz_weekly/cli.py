@@ -102,6 +102,32 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--ticker", help="Single ticker to scrape")
     parser.add_argument("--output-format", choices=["json", "csv"], default="json")
 
+    # enhanced pipeline args (run command)
+    parser.add_argument(
+        "--include-insider",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Include insider trading data in main pipeline (default: disabled).",
+    )
+    parser.add_argument(
+        "--include-earnings",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Include earnings reaction data in main pipeline (default: disabled).",
+    )
+    parser.add_argument(
+        "--include-financials",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Include financial statement data in main pipeline (default: disabled).",
+    )
+    parser.add_argument(
+        "--enhanced-scoring",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Use enhanced scoring with new data sources (default: disabled).",
+    )
+
     return parser.parse_args(argv)
 
 
@@ -335,6 +361,10 @@ def main(argv: List[str] | None = None) -> None:
         checkpoint_every=args.checkpoint_every,
         latest_only_ok=bool(args.latest_only_ok),
         latest_include_as_of_date=bool(args.latest_include_as_of_date),
+        include_insider=bool(args.include_insider),
+        include_earnings=bool(args.include_earnings),
+        include_financials=bool(args.include_financials),
+        enhanced_scoring=bool(args.enhanced_scoring),
     )
 
     session = create_session(config.http)

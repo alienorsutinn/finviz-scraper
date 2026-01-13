@@ -33,6 +33,12 @@ class RunConfig:
     latest_only_ok: bool = True
     latest_include_as_of_date: bool = True
 
+    # Enhanced scraping options
+    include_insider: bool = False
+    include_earnings: bool = False
+    include_financials: bool = False
+    enhanced_scoring: bool = False
+
 
 @dataclass
 class HttpConfig:
@@ -75,6 +81,10 @@ def env_config(
     checkpoint_every: int = 10,
     latest_only_ok: bool = True,
     latest_include_as_of_date: bool = True,
+    include_insider: bool = False,
+    include_earnings: bool = False,
+    include_financials: bool = False,
+    enhanced_scoring: bool = False,
 ) -> AppConfig:
     """Construct configuration from provided values and environment variables."""
     proxy = os.getenv("FINVIZ_PROXY")
@@ -100,6 +110,10 @@ def env_config(
         resume=resume,
         latest_only_ok=latest_only_ok,
         latest_include_as_of_date=latest_include_as_of_date,
+        include_insider=include_insider,
+        include_earnings=include_earnings,
+        include_financials=include_financials,
+        enhanced_scoring=enhanced_scoring,
     )
 
     return AppConfig(http=http, run=run)

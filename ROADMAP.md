@@ -19,13 +19,30 @@
 - ✅ Comprehensive documentation (QUICKSTART.md, README.md)
 - ✅ Integration examples
 
+### Phase 3: Pipeline Integration (✅ COMPLETED!)
+- ✅ Added optional CLI flags (`--include-insider`, `--include-earnings`, `--include-financials`)
+- ✅ Created `enhance.py` module for data scraping and merging
+- ✅ Updated `pipeline.py` to call enhancement functions
+- ✅ Added 15+ new columns to output (insider, earnings, financial ratios)
+- ✅ Created `score_enhanced.py` for enhanced scoring algorithms
+- ✅ Added 13 new tests (50 total tests passing)
+- ✅ Updated documentation (README.md)
+- ✅ All changes non-breaking (opt-in via flags)
+
+**Usage:**
+```bash
+python -m finviz_weekly run --mode universe --ticker-limit 100 \
+  --include-insider --include-earnings --include-financials \
+  --out data
+```
+
 ---
 
 ## Next Steps - Strategic Plan
 
-### 🎯 Phase 3: Production Testing & Integration (IMMEDIATE - 1-2 weeks)
+### 🎯 Phase 4: Enhanced Scoring & Strategy (NEXT - 2-4 weeks)
 
-**Priority: HIGH** | **Effort: Medium**
+**Priority: HIGH** | **Effort: Medium-High**
 
 #### 3.1 Test New Scrapers in Production
 ```bash
