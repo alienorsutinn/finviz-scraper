@@ -24,6 +24,8 @@ def sanitize_url(url: str) -> str:
         return str(url)
 
     patterns = [
+        # URL-embedded credentials (user:password@host)
+        (r'://([^:/@\s]+):([^@\s]+)@', r'://\1:***MASKED***@'),
         # API keys in query params
         (r'(api_key=)[^&\s]+', r'\1***MASKED***'),
         (r'(apikey=)[^&\s]+', r'\1***MASKED***'),
@@ -33,8 +35,8 @@ def sanitize_url(url: str) -> str:
         (r'(passwd=)[^&\s]+', r'\1***MASKED***'),
         (r'(secret=)[^&\s]+', r'\1***MASKED***'),
         # OpenAI API keys (sk-proj-, sk-)
-        (r'sk-proj-[A-Za-z0-9_-]{20,}', r'sk-***MASKED***'),
-        (r'sk-[A-Za-z0-9]{20,}', r'sk-***MASKED***'),
+        (r'sk-proj-[A-Za-z0-9_-]{10,}', r'sk-***MASKED***'),
+        (r'sk-[A-Za-z0-9]{10,}', r'sk-***MASKED***'),
         # AWS keys
         (r'AKIA[0-9A-Z]{16}', r'AKIA***MASKED***'),
         # Generic bearer tokens
