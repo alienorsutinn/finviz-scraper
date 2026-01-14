@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 from pathlib import Path
 from typing import List
@@ -28,7 +29,11 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
         "command",
         nargs="?",
         default="run",
-        choices=["run", "screen", "train", "report", "debate", "insider", "earnings", "financials"],
+        choices=[
+            "run", "screen", "train", "report", "debate",
+            "insider", "earnings", "financials",
+            "model-registry", "drift-check", "retrain",
+        ],
         help="Command to execute (default: run).",
     )
 
@@ -126,6 +131,77 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
         action=argparse.BooleanOptionalAction,
         default=False,
         help="Use enhanced scoring with new data sources (default: disabled).",
+    )
+
+    # Model registry args (model-registry command)
+    parser.add_argument(
+        "--registry-path",
+        default="models/registry",
+        help="Path to model registry directory (default: models/registry).",
+    )
+    parser.add_argument(
+        "--model-id",
+        help="Model ID for registry operations.",
+    )
+    parser.add_argument(
+        "--registry-action",
+        choices=["list", "compare", "deploy", "status", "cleanup"],
+        default="list",
+        help="Registry action to perform (default: list).",
+    )
+    parser.add_argument(
+        "--model-type",
+        help="Filter by model type (e.g., xgboost, ensemble).",
+    )
+    parser.add_argument(
+        "--keep-last-n",
+        type=int,
+        default=5,
+        help="Number of models to keep during cleanup (default: 5).",
+    )
+
+    # Drift detection args (drift-check command)
+    parser.add_argument(
+        "--ic-threshold",
+        type=float,
+        default=0.20,
+        help="IC drop threshold for drift alert (default: 0.20).",
+    )
+    parser.add_argument(
+        "--sharpe-threshold",
+        type=float,
+        default=0.30,
+        help="Sharpe drop threshold for drift alert (default: 0.30).",
+    )
+    parser.add_argument(
+        "--drift-output",
+        help="Path to save drift report JSON.",
+    )
+
+    # Retraining args (retrain command)
+    parser.add_argument(
+        "--force-retrain",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Force retraining even if not scheduled (default: disabled).",
+    )
+    parser.add_argument(
+        "--retrain-interval",
+        type=int,
+        default=30,
+        help="Days between scheduled retrains (default: 30).",
+    )
+    parser.add_argument(
+        "--training-lookback",
+        type=int,
+        default=730,
+        help="Days of training data to use (default: 730).",
+    )
+    parser.add_argument(
+        "--tune-hyperparams",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Enable hyperparameter tuning during retraining (default: disabled).",
     )
 
     return parser.parse_args(argv)
@@ -238,7 +314,6 @@ def _run_earnings_command(args: argparse.Namespace) -> None:
 
 def _run_financials_command(args: argparse.Namespace) -> None:
     """Run financial statements scraper command."""
-    import json
     from .config import HttpConfig
 
     tickers = []
@@ -274,6 +349,208 @@ def _run_financials_command(args: argparse.Namespace) -> None:
 
     # Output (JSON only for complex nested data)
     print(json.dumps(results, indent=2))
+
+
+def _run_model_registry_command(args: argparse.Namespace) -> None:
+    """Run model registry command."""
+    from .model_registry import ModelRegistry
+
+    registry_path = Path(args.registry_path)
+    registry = ModelRegistry(registry_path)
+
+    action = args.registry_action
+
+    if action == "list":
+        models = registry.list_models(model_type=args.model_type)
+        if not models:
+            print("No models registered.")
+            return
+
+        print(f"\nRegistered Models ({len(models)} total):")
+        print("-" * 80)
+        for m in models:
+            prod_marker = " [PRODUCTION]" if m.is_production else ""
+            print(f"  {m.model_id}{prod_marker}")
+            print(f"    Type: {m.model_type} | Version: {m.version}")
+            print(f"    Trained: {m.trained_at[:10]} | Samples: {m.training_samples}")
+            print(f"    Val IC: {m.val_ic:.4f} | Features: {m.feature_count}")
+            print()
+
+    elif action == "compare":
+        df = registry.compare_models(model_type=args.model_type)
+        if df.empty:
+            print("No models to compare.")
+            return
+
+        print("\nModel Comparison:")
+        print("-" * 100)
+        print(df.to_string(index=False))
+
+    elif action == "deploy":
+        if not args.model_id:
+            raise SystemExit("Error: --model-id required for deploy action")
+
+        metadata = registry.deploy_to_production(args.model_id)
+        print(f"Deployed model to production: {metadata.model_id}")
+
+    elif action == "status":
+        stats = registry.get_model_stats()
+        print("\nModel Registry Status:")
+        print("-" * 40)
+        print(f"  Total models: {stats['total_models']}")
+        print(f"  Production model: {stats.get('production_model', 'None')}")
+        if stats['total_models'] > 0:
+            print(f"  Latest model: {stats.get('latest_model', 'N/A')}")
+            print(f"  Best val IC: {stats.get('best_val_ic', 'N/A')}")
+        print(f"  Model types: {stats.get('model_types', {})}")
+
+    elif action == "cleanup":
+        keep_n = args.keep_last_n
+        deleted = registry.cleanup_old_models(
+            keep_last_n=keep_n,
+            model_type=args.model_type,
+            archive=True,
+        )
+        print(f"Cleaned up {len(deleted)} old models (kept last {keep_n})")
+        for model_id in deleted:
+            print(f"  Archived: {model_id}")
+
+
+def _run_drift_check_command(args: argparse.Namespace) -> None:
+    """Run drift detection command."""
+    from .drift_detection import DriftDetector, DriftThresholds
+    from .model_registry import ModelRegistry
+
+    registry_path = Path(args.registry_path)
+    registry = ModelRegistry(registry_path)
+
+    # Get model to check
+    model_id = args.model_id
+    if not model_id:
+        model_id = registry.get_production_model_id()
+        if not model_id:
+            raise SystemExit("Error: No production model deployed. Use --model-id to specify a model.")
+
+    # Load data
+    data_dir = Path(args.out)
+    history_path = data_dir / "history" / "finviz_fundamentals_history.parquet"
+    prices_path = data_dir / "history" / "prices.parquet"
+
+    if not history_path.exists():
+        raise SystemExit(f"Error: History file not found: {history_path}")
+    if not prices_path.exists():
+        raise SystemExit(f"Error: Prices file not found: {prices_path}")
+
+    # Configure thresholds
+    thresholds = DriftThresholds(
+        ic_drop_pct=args.ic_threshold,
+        sharpe_drop_pct=args.sharpe_threshold,
+    )
+
+    # Run drift check
+    from .drift_detection import run_drift_check
+
+    output_path = Path(args.drift_output) if args.drift_output else None
+
+    report = run_drift_check(
+        model_id=model_id,
+        data_path=history_path,
+        prices_path=prices_path,
+        registry_path=registry_path,
+        output_path=output_path,
+    )
+
+    # Print summary
+    print("\nDrift Detection Report")
+    print("=" * 60)
+    print(f"Model: {report.model_id}")
+    print(f"Analysis Date: {report.analysis_date[:10]}")
+    print()
+
+    print("Performance Drift:")
+    print(f"  Baseline IC: {report.baseline_ic:.4f}")
+    print(f"  Current IC:  {report.current_ic:.4f}")
+    print(f"  Change:      {report.ic_change_pct:+.1%} {'[ALERT]' if report.ic_alert else ''}")
+    print()
+
+    print("Feature Drift:")
+    print(f"  Total features:   {report.total_features}")
+    print(f"  Shifted features: {report.shifted_features} ({report.shifted_features_pct:.1%})")
+    if report.shifted_feature_names:
+        print(f"  Shifted: {', '.join(report.shifted_feature_names[:5])}")
+    print()
+
+    print("Assessment:")
+    print(f"  Severity: {report.severity.upper()}")
+    print(f"  Drift Detected: {report.overall_drift_detected}")
+    print(f"  Recommendation: {report.recommended_action}")
+
+    if output_path:
+        print(f"\nFull report saved to: {output_path}")
+
+
+def _run_retrain_command(args: argparse.Namespace) -> None:
+    """Run automated retraining command."""
+    from .ml_train import ModelConfig
+    from .model_registry import ModelRegistry
+    from .retraining import RetrainingConfig, RetrainingScheduler, run_automated_retraining
+
+    registry_path = Path(args.registry_path)
+    data_dir = Path(args.out)
+
+    history_path = data_dir / "history" / "finviz_fundamentals_history.parquet"
+    prices_path = data_dir / "history" / "prices.parquet"
+
+    if not history_path.exists():
+        raise SystemExit(f"Error: History file not found: {history_path}")
+    if not prices_path.exists():
+        raise SystemExit(f"Error: Prices file not found: {prices_path}")
+
+    # Configure model training
+    model_config = ModelConfig(
+        tune_hyperparams=args.tune_hyperparams,
+    )
+
+    # Configure retraining
+    retrain_config = RetrainingConfig(
+        retrain_interval_days=args.retrain_interval,
+        training_lookback_days=args.training_lookback,
+        model_config=model_config,
+    )
+
+    # Run retraining
+    result = run_automated_retraining(
+        history_path=history_path,
+        prices_path=prices_path,
+        registry_path=registry_path,
+        config=retrain_config,
+        force=args.force_retrain,
+    )
+
+    # Print summary
+    print("\nRetraining Result")
+    print("=" * 60)
+    print(f"Retrain ID: {result.retrain_id}")
+    print(f"Trigger: {result.trigger}")
+    print(f"Training Success: {result.training_success}")
+    print()
+
+    if result.training_success:
+        print("Performance Comparison:")
+        print(f"  Old IC: {result.old_ic:.4f}")
+        print(f"  New IC: {result.new_ic:.4f}")
+        print(f"  Improvement: {result.ic_improvement:+.4f}")
+        print()
+
+    print("Deployment:")
+    print(f"  Decision: {result.deployment_decision}")
+    print(f"  Reason: {result.deployment_reason}")
+
+    if result.new_model_id:
+        print(f"\nNew Model ID: {result.new_model_id}")
+
+    if result.error_message:
+        print(f"\nError: {result.error_message}")
 
 
 def main(argv: List[str] | None = None) -> None:
@@ -337,6 +614,18 @@ def main(argv: List[str] | None = None) -> None:
 
     if args.command == "financials":
         _run_financials_command(args)
+        return
+
+    if args.command == "model-registry":
+        _run_model_registry_command(args)
+        return
+
+    if args.command == "drift-check":
+        _run_drift_check_command(args)
+        return
+
+    if args.command == "retrain":
+        _run_retrain_command(args)
         return
 
     # run
