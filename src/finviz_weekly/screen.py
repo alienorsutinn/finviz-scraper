@@ -79,7 +79,7 @@ def _parse_num(x: object) -> float:
         s = s[:-1]
     try:
         return float(s) * mult
-    except Exception:
+    except (ValueError, TypeError, AttributeError):
         return float("nan")
 
 
@@ -332,8 +332,8 @@ def _infer_as_of(df: pd.DataFrame) -> date:
     if "as_of_date" in df.columns:
         try:
             return date.fromisoformat(str(df["as_of_date"].iloc[0]))
-        except Exception:
-            pass
+        except (ValueError, TypeError, IndexError, AttributeError) as e:
+            LOGGER.warning(f"Failed to parse as_of_date, using today: {e}")
     return date.today()
 
 
@@ -341,7 +341,19 @@ def _read_latest(out_dir: str) -> pd.DataFrame:
     path = Path(out_dir) / LATEST_DIR / "finviz_fundamentals.parquet"
     if not path.exists():
         raise FileNotFoundError(f"Latest snapshot not found: {path}")
-    return pd.read_parquet(path)
+
+    df = pd.read_parquet(path)
+
+    # Validate schema
+    required_cols = ["ticker", "company", "sector"]
+    missing_cols = [c for c in required_cols if c not in df.columns]
+    if missing_cols:
+        raise ValueError(f"Missing required columns in {path}: {missing_cols}")
+
+    if len(df) == 0:
+        LOGGER.warning(f"Input DataFrame from {path} is empty")
+
+    return df
 
 
 def _append_scored_history(out_dir: Path, scored_df: pd.DataFrame, as_of: date) -> None:
@@ -419,7 +431,8 @@ def _load_learned_weights(path: Path):
         return None
     try:
         return json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
+    except (json.JSONDecodeError, OSError, UnicodeDecodeError) as e:
+        LOGGER.warning(f"Failed to load learned weights from {path}: {e}")
         return None
 
 
@@ -583,6 +596,28 @@ def run_screening(
     watchlist_file: Optional[str] = None,
     normalize_by: str = "none",
 ) -> None:
+    # Input validation
+    if top_n < 1 or top_n > 500:
+        raise ValueError(f"top_n must be in [1, 500], got {top_n}")
+
+    if min_market_cap < 0:
+        raise ValueError(f"min_market_cap must be >= 0, got {min_market_cap}")
+
+    if min_price < 0:
+        raise ValueError(f"min_price must be >= 0, got {min_price}")
+
+    if candidates_max < 1:
+        raise ValueError(f"candidates_max must be >= 1, got {candidates_max}")
+
+    # Validate output directory
+    out_path = Path(out_dir)
+    out_path.mkdir(parents=True, exist_ok=True)
+    import os
+    if not os.access(out_path, os.W_OK):
+        raise PermissionError(f"Output directory not writable: {out_path}")
+
+    LOGGER.debug(f"✅ Input validation passed: top_n={top_n}, filters=[mcap>={min_market_cap}, price>={min_price}]")
+
     latest = _read_latest(out_dir)
     latest = _apply_basic_filters(latest, min_market_cap=min_market_cap, min_price=min_price)
     if latest.empty:

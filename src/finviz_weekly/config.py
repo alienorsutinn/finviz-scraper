@@ -15,6 +15,28 @@ class RateLimits:
     concurrency: int = 6
     checkpoint_every: int = 10
 
+    def __post_init__(self):
+        """Validate rate limit configuration."""
+        if self.rate_per_sec <= 0 or self.rate_per_sec > 10:
+            raise ValueError(
+                f"rate_per_sec must be in (0, 10], got {self.rate_per_sec}. "
+                "Higher values may trigger rate limiting from Finviz."
+            )
+
+        if self.page_sleep_min < 0:
+            raise ValueError(f"page_sleep_min must be >= 0, got {self.page_sleep_min}")
+
+        if self.page_sleep_max < self.page_sleep_min:
+            raise ValueError(
+                f"page_sleep_max ({self.page_sleep_max}) must be >= page_sleep_min ({self.page_sleep_min})"
+            )
+
+        if self.concurrency < 1 or self.concurrency > 50:
+            raise ValueError(f"concurrency must be in [1, 50], got {self.concurrency}")
+
+        if self.checkpoint_every < 1:
+            raise ValueError(f"checkpoint_every must be >= 1, got {self.checkpoint_every}")
+
 
 @dataclass
 class RunConfig:
@@ -39,6 +61,33 @@ class RunConfig:
     include_financials: bool = False
     enhanced_scoring: bool = False
 
+    def __post_init__(self):
+        """Validate run configuration."""
+        from pathlib import Path
+
+        valid_modes = ["tickers", "universe", "all-screener"]
+        if self.mode not in valid_modes:
+            raise ValueError(f"mode must be one of {valid_modes}, got '{self.mode}'")
+
+        if self.ticker_limit is not None and self.ticker_limit < 1:
+            raise ValueError(f"ticker_limit must be >= 1 or None, got {self.ticker_limit}")
+
+        if self.industry_limit is not None and self.industry_limit < 1:
+            raise ValueError(f"industry_limit must be >= 1 or None, got {self.industry_limit}")
+
+        # Validate output directory is writable
+        out_path = Path(self.out_dir)
+        try:
+            out_path.mkdir(parents=True, exist_ok=True)
+            if not os.access(out_path, os.W_OK):
+                raise PermissionError(f"Output directory not writable: {out_path}")
+        except OSError as e:
+            raise PermissionError(f"Cannot create/access output directory {out_path}: {e}") from e
+
+        valid_log_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+        if self.log_level.upper() not in valid_log_levels:
+            raise ValueError(f"log_level must be one of {valid_log_levels}, got '{self.log_level}'")
+
 
 @dataclass
 class HttpConfig:
@@ -47,6 +96,17 @@ class HttpConfig:
     timeout_connect: int = 5
     timeout_read: int = 20
     max_retries: int = 5
+
+    def __post_init__(self):
+        """Validate HTTP configuration."""
+        if self.timeout_connect < 1:
+            raise ValueError(f"timeout_connect must be >= 1, got {self.timeout_connect}")
+
+        if self.timeout_read < 1:
+            raise ValueError(f"timeout_read must be >= 1, got {self.timeout_read}")
+
+        if self.max_retries < 0 or self.max_retries > 10:
+            raise ValueError(f"max_retries must be in [0, 10], got {self.max_retries}")
 
 
 @dataclass

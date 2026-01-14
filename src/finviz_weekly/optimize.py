@@ -116,20 +116,92 @@ class FactorOptimizer:
         # Evaluate optimal weights
         best_sharpe = -result.fun
 
+        # Calculate actual return for optimal weights
+        best_return = self._calculate_portfolio_return(factors, optimal_weights_list)
+
         # Calculate improvement vs equal weights
         equal_weights = [1.0 / len(factors)] * len(factors)
         baseline_sharpe = -objective_function(equal_weights)
         improvement_pct = ((best_sharpe - baseline_sharpe) / abs(baseline_sharpe)) * 100 if baseline_sharpe != 0 else 0
 
-        LOGGER.info(f"Optimization complete. Best Sharpe: {best_sharpe:.3f} (improvement: {improvement_pct:+.1f}%)")
+        LOGGER.info(f"Optimization complete. Best Sharpe: {best_sharpe:.3f}, Return: {best_return*100:.1f}% (improvement: {improvement_pct:+.1f}%)")
 
         return OptimizationResult(
             optimal_weights=optimal_weights,
             best_sharpe=best_sharpe,
-            best_return=0.0,  # TODO: Calculate actual return
+            best_return=best_return,
             iterations=n_iterations,
             improvement_pct=improvement_pct,
         )
+
+    def _calculate_portfolio_return(self, factors: List[str], weights: List[float]) -> float:
+        """
+        Calculate cumulative return for a set of factor weights.
+
+        Args:
+            factors: List of factor names
+            weights: List of factor weights
+
+        Returns:
+            Total cumulative return (e.g., 0.25 for 25% return)
+        """
+        # Get period returns from backtest
+        weights_dict = {f: w for f, w in zip(factors, weights)}
+
+        history_filtered = self.history[
+            (self.history["as_of_date"] >= self.start_date) & (self.history["as_of_date"] <= self.end_date)
+        ].copy()
+
+        if len(history_filtered) == 0:
+            return 0.0
+
+        # Calculate composite score
+        history_filtered["composite_score"] = 0.0
+        for factor, weight in weights_dict.items():
+            if factor in history_filtered.columns:
+                factor_values = pd.to_numeric(history_filtered[factor], errors="coerce").fillna(0)
+                history_filtered["composite_score"] += factor_values * weight
+
+        # Backtest returns
+        dates = sorted(history_filtered["as_of_date"].unique())
+        returns = []
+
+        for i in range(len(dates) - 1):
+            current_date = dates[i]
+            next_date = dates[i + 1]
+
+            current_data = history_filtered[history_filtered["as_of_date"] == current_date]
+            top_stocks = current_data.nlargest(20, "composite_score")
+
+            if len(top_stocks) == 0:
+                continue
+
+            tickers = top_stocks["ticker"].tolist()
+            next_data = history_filtered[
+                (history_filtered["as_of_date"] == next_date) & (history_filtered["ticker"].isin(tickers))
+            ]
+
+            if len(next_data) > 0 and "price" in next_data.columns:
+                merged = top_stocks[["ticker", "price"]].merge(
+                    next_data[["ticker", "price"]], on="ticker", suffixes=("_current", "_next")
+                )
+
+                if len(merged) > 0:
+                    # Avoid division by zero
+                    merged = merged[merged["price_current"] > 0]
+                    if len(merged) > 0:
+                        merged["return"] = (merged["price_next"] - merged["price_current"]) / merged["price_current"]
+                        period_return = merged["return"].mean()
+                        returns.append(period_return)
+
+        if len(returns) == 0:
+            return 0.0
+
+        # Compound returns: (1+r1)*(1+r2)*...*(1+rn) - 1
+        returns_array = np.array(returns)
+        cumulative = np.prod(1 + returns_array) - 1
+
+        return float(cumulative)
 
     def _evaluate_weights(self, factors: List[str], weights: List[float]) -> float:
         """
@@ -191,9 +263,12 @@ class FactorOptimizer:
                 )
 
                 if len(merged) > 0:
-                    merged["return"] = (merged["price_next"] - merged["price_current"]) / merged["price_current"]
-                    period_return = merged["return"].mean()
-                    returns.append(period_return)
+                    # Avoid division by zero
+                    merged = merged[merged["price_current"] > 0]
+                    if len(merged) > 0:
+                        merged["return"] = (merged["price_next"] - merged["price_current"]) / merged["price_current"]
+                        period_return = merged["return"].mean()
+                        returns.append(period_return)
 
         if len(returns) < 10:
             return 0.0

@@ -147,15 +147,15 @@ def scrape_earnings_reactions(ticker: str, session, http_config: HttpConfig) -> 
                     
                     earnings_data.append(earnings_event)
                     
-                except Exception as e:
+                except (AttributeError, IndexError, ValueError, KeyError, TypeError) as e:
                     LOGGER.debug(f"Error parsing earnings row for {ticker}: {e}")
                     continue
-        
+
         LOGGER.info(f"Found {len(earnings_data)} earnings events for {ticker}")
         return earnings_data
-        
-    except Exception as e:
-        LOGGER.error(f"Error scraping earnings reactions for {ticker}: {e}")
+
+    except (requests.exceptions.RequestException, AttributeError, ValueError) as e:
+        LOGGER.error(f"Error scraping earnings reactions for {ticker}: {e}", exc_info=True)
         return []
 
 

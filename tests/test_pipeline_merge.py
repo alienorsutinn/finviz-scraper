@@ -20,7 +20,7 @@ def test_execute_appends_history_without_duplicates(monkeypatch, tmp_path):
         mode="tickers",
         tickers=["ABC"],
         out_dir=str(tmp_path),
-        rate_per_sec=100.0,
+        rate_per_sec=10.0,  # Maximum valid value
         page_sleep_min=0,
         page_sleep_max=0,
     )
