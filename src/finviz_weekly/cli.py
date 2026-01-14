@@ -33,6 +33,7 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
             "run", "screen", "train", "report", "debate",
             "insider", "earnings", "financials",
             "model-registry", "drift-check", "retrain",
+            "correlation", "custom-factors",
         ],
         help="Command to execute (default: run).",
     )
@@ -202,6 +203,65 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
         action=argparse.BooleanOptionalAction,
         default=False,
         help="Enable hyperparameter tuning during retraining (default: disabled).",
+    )
+
+    # Correlation analysis args (correlation command)
+    parser.add_argument(
+        "--correlation-threshold",
+        type=float,
+        default=0.7,
+        help="Threshold for flagging high correlations (default: 0.7).",
+    )
+    parser.add_argument(
+        "--rolling-window",
+        type=int,
+        default=90,
+        help="Rolling window size for correlation analysis (default: 90 days).",
+    )
+    parser.add_argument(
+        "--n-clusters",
+        type=int,
+        default=3,
+        help="Number of factor clusters (default: 3).",
+    )
+    parser.add_argument(
+        "--correlation-output",
+        help="Path to save correlation analysis results JSON.",
+    )
+    parser.add_argument(
+        "--plot-output",
+        help="Path to save correlation heatmap plot.",
+    )
+
+    # Custom factors args (custom-factors command)
+    parser.add_argument(
+        "--factors-action",
+        choices=["list", "create", "test", "delete", "compute"],
+        default="list",
+        help="Custom factors action (default: list).",
+    )
+    parser.add_argument(
+        "--factor-name",
+        help="Name for custom factor.",
+    )
+    parser.add_argument(
+        "--factor-expression",
+        help="Expression for custom factor (e.g., '{pe} / {eps_growth_next_y}').",
+    )
+    parser.add_argument(
+        "--factor-description",
+        help="Description for custom factor.",
+    )
+    parser.add_argument(
+        "--factor-category",
+        default="custom",
+        help="Category for custom factor (default: custom).",
+    )
+    parser.add_argument(
+        "--higher-is-better",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Whether higher factor values are better (default: True).",
     )
 
     return parser.parse_args(argv)
@@ -553,6 +613,187 @@ def _run_retrain_command(args: argparse.Namespace) -> None:
         print(f"\nError: {result.error_message}")
 
 
+def _run_correlation_command(args: argparse.Namespace) -> None:
+    """Run correlation analysis command."""
+    from .correlation_analysis import CorrelationAnalyzer, CorrelationConfig
+    from .visualization import FactorVisualizer
+
+    data_dir = Path(args.out)
+    history_path = data_dir / "history" / "finviz_fundamentals_history.parquet"
+
+    if not history_path.exists():
+        raise SystemExit(f"Error: History file not found: {history_path}")
+
+    # Load data
+    import pandas as pd
+    data = pd.read_parquet(history_path)
+
+    # Configure analysis
+    config = CorrelationConfig(
+        rolling_window_days=args.rolling_window,
+        n_clusters=args.n_clusters,
+    )
+
+    # Run analysis
+    analyzer = CorrelationAnalyzer(config)
+    result = analyzer.analyze(data, correlation_threshold=args.correlation_threshold)
+
+    # Print summary
+    print("\nCorrelation Analysis Results")
+    print("=" * 60)
+    print(f"Factors analyzed: {len(result.factors_analyzed)}")
+    print(f"High correlation pairs (>{args.correlation_threshold}): {len(result.high_correlation_pairs)}")
+    print()
+
+    if result.high_correlation_pairs:
+        print("Highly Correlated Pairs:")
+        for f1, f2, corr in result.high_correlation_pairs[:10]:
+            print(f"  {f1} <-> {f2}: {corr:.3f}")
+        print()
+
+    print("Factor Clusters:")
+    for cluster_id, factors in result.cluster_centroids.items():
+        print(f"  Cluster {cluster_id}: {', '.join(factors)}")
+    print()
+
+    if result.pca_explained_variance:
+        print("PCA Explained Variance:")
+        cumulative = 0
+        for i, var in enumerate(result.pca_explained_variance):
+            cumulative += var
+            print(f"  PC{i+1}: {var:.1%} (cumulative: {cumulative:.1%})")
+        print()
+
+    # Get redundant factors
+    redundant = analyzer.get_redundant_factors(result)
+    if redundant:
+        print(f"Potentially Redundant Factors: {', '.join(redundant)}")
+
+    # Save results if output path provided
+    if args.correlation_output:
+        output_path = Path(args.correlation_output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_path, "w") as f:
+            json.dump(result.to_dict(), f, indent=2, default=str)
+        print(f"\nResults saved to: {output_path}")
+
+    # Save plot if output path provided
+    if args.plot_output:
+        visualizer = FactorVisualizer()
+        visualizer.plot_correlation_heatmap(
+            result.correlation_matrix,
+            title="Factor Correlation Matrix",
+            output_path=Path(args.plot_output),
+        )
+        print(f"Heatmap saved to: {args.plot_output}")
+
+
+def _run_custom_factors_command(args: argparse.Namespace) -> None:
+    """Run custom factors command."""
+    from .custom_factors import CustomFactorBuilder, get_factor_templates
+
+    builder = CustomFactorBuilder()
+    action = args.factors_action
+
+    if action == "list":
+        factors = builder.list_factors()
+        if not factors:
+            print("No custom factors defined.")
+            print("\nAvailable templates:")
+            for name, template in get_factor_templates().items():
+                print(f"  {name}: {template['description']}")
+            return
+
+        print(f"\nCustom Factors ({len(factors)} total):")
+        print("-" * 60)
+        for f in factors:
+            print(f"  {f.name}")
+            print(f"    Expression: {f.expression}")
+            print(f"    Category: {f.category} | Higher is better: {f.higher_is_better}")
+            if f.description:
+                print(f"    Description: {f.description}")
+            print()
+
+    elif action == "create":
+        if not args.factor_name:
+            raise SystemExit("Error: --factor-name required for create action")
+        if not args.factor_expression:
+            raise SystemExit("Error: --factor-expression required for create action")
+
+        factor = builder.create_factor(
+            name=args.factor_name,
+            expression=args.factor_expression,
+            description=args.factor_description or "",
+            category=args.factor_category,
+            higher_is_better=args.higher_is_better,
+        )
+
+        print(f"Created factor: {factor.name}")
+        print(f"  Expression: {factor.expression}")
+
+    elif action == "test":
+        if not args.factor_name:
+            raise SystemExit("Error: --factor-name required for test action")
+
+        data_dir = Path(args.out)
+        latest_path = data_dir / "latest" / "finviz_fundamentals.parquet"
+
+        if not latest_path.exists():
+            raise SystemExit(f"Error: Latest data not found: {latest_path}")
+
+        import pandas as pd
+        data = pd.read_parquet(latest_path)
+
+        result = builder.test_factor(args.factor_name, data)
+
+        print(f"\nFactor Test: {result.factor_name}")
+        print("=" * 40)
+        print(f"Success: {result.success}")
+
+        if result.success:
+            print(f"Sample size: {result.sample_size}")
+            print(f"Mean: {result.mean_value:.4f}")
+            print(f"Std: {result.std_value:.4f}")
+            print(f"Min: {result.min_value:.4f}")
+            print(f"Max: {result.max_value:.4f}")
+            print(f"Null %: {result.null_pct:.1f}%")
+
+            if result.sample_values:
+                print("\nSample Values:")
+                for row in result.sample_values[:5]:
+                    print(f"  {row.get('ticker', 'N/A')}: {row.get('factor_value', 'N/A'):.4f}")
+        else:
+            print(f"Error: {result.error_message}")
+
+    elif action == "delete":
+        if not args.factor_name:
+            raise SystemExit("Error: --factor-name required for delete action")
+
+        builder.delete_factor(args.factor_name)
+        print(f"Deleted factor: {args.factor_name}")
+
+    elif action == "compute":
+        data_dir = Path(args.out)
+        latest_path = data_dir / "latest" / "finviz_fundamentals.parquet"
+
+        if not latest_path.exists():
+            raise SystemExit(f"Error: Latest data not found: {latest_path}")
+
+        import pandas as pd
+        data = pd.read_parquet(latest_path)
+
+        result = builder.compute_all_factors(data)
+
+        # Show computed factors
+        custom_cols = [c for c in result.columns if c.startswith("custom_")]
+        if custom_cols:
+            print(f"Computed {len(custom_cols)} custom factors")
+            print("\nSample (first 10 rows):")
+            print(result[["ticker"] + custom_cols].head(10).to_string())
+        else:
+            print("No custom factors to compute")
+
+
 def main(argv: List[str] | None = None) -> None:
     args = parse_args(argv)
     logging.basicConfig(level=getattr(logging, args.log_level.upper(), logging.INFO))
@@ -626,6 +867,14 @@ def main(argv: List[str] | None = None) -> None:
 
     if args.command == "retrain":
         _run_retrain_command(args)
+        return
+
+    if args.command == "correlation":
+        _run_correlation_command(args)
+        return
+
+    if args.command == "custom-factors":
+        _run_custom_factors_command(args)
         return
 
     # run
