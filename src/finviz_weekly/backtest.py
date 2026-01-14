@@ -25,6 +25,12 @@ class BacktestConfig:
     max_position_size: float = 0.10  # Max 10% per position
     initial_capital: float = 100000.0
 
+    # Enhanced backtesting parameters (Phase 6A)
+    commission_pct: float = 0.001  # 0.1% commission per trade (10 bps)
+    slippage_bps: float = 5.0  # 5 basis points slippage per trade
+    min_volume: float = 100000.0  # Minimum daily volume filter
+    min_market_cap: float = 0.0  # Minimum market cap filter (0 = no filter)
+
 
 @dataclass
 class BacktestResults:
@@ -40,6 +46,12 @@ class BacktestResults:
     avg_holding_days: float
     portfolio_values: pd.Series
     trades: pd.DataFrame
+
+    # Enhanced metrics (Phase 6A)
+    total_commission: float = 0.0  # Total commission costs
+    total_slippage: float = 0.0  # Total slippage costs
+    return_before_costs: float = 0.0  # Return before transaction costs
+    turnover: float = 0.0  # Annual portfolio turnover rate
 
 
 class Backtester:
@@ -91,11 +103,14 @@ class Backtester:
         rebalance_dates = self._get_rebalance_dates(hist_filtered, config.rebalance_days)
         LOGGER.info(f"Rebalancing on {len(rebalance_dates)} dates")
 
-        # Initialize portfolio
+        # Initialize portfolio and cost tracking (Phase 6A)
         capital = config.initial_capital
         portfolio = {}  # {ticker: shares}
         trades = []
         portfolio_values = []
+        total_commission = 0.0
+        total_slippage = 0.0
+        total_turnover = 0.0
 
         for date in rebalance_dates:
             # Get snapshot for this date
@@ -111,10 +126,16 @@ class Backtester:
 
             top_stocks = snapshot.nlargest(config.top_n, config.score_column)
 
-            # Rebalance portfolio
-            new_portfolio, new_trades = self._rebalance(
+            # Rebalance portfolio with transaction costs (Phase 6A)
+            new_portfolio, new_trades, trade_costs = self._rebalance(
                 portfolio, top_stocks, capital, config, date
             )
+
+            # Deduct transaction costs from capital
+            capital -= trade_costs["commission"] + trade_costs["slippage"]
+            total_commission += trade_costs["commission"]
+            total_slippage += trade_costs["slippage"]
+            total_turnover += trade_costs["turnover"]
 
             portfolio = new_portfolio
             trades.extend(new_trades)
@@ -125,10 +146,30 @@ class Backtester:
 
             LOGGER.debug(f"{date.date()}: Portfolio value ${portfolio_value:,.0f}")
 
-        # Calculate metrics
+        # Calculate metrics with enhanced tracking (Phase 6A)
         pv_df = pd.DataFrame(portfolio_values).set_index("date")["value"]
+
+        # Calculate returns before and after costs
+        initial = config.initial_capital
+        final = pv_df.iloc[-1]
+        return_after_costs = (final - initial) / initial
+        return_before_costs = (final + total_commission + total_slippage - initial) / initial
+
+        # Calculate annual turnover
+        days = (pd.Timestamp(config.end_date) - pd.Timestamp(config.start_date)).days
+        years = days / 365.25
+        annual_turnover = total_turnover / years if years > 0 else 0
+
         results = self._calculate_metrics(pv_df, config)
         results.trades = pd.DataFrame(trades)
+        results.total_commission = total_commission
+        results.total_slippage = total_slippage
+        results.return_before_costs = return_before_costs
+        results.turnover = annual_turnover
+
+        LOGGER.info(f"Transaction costs: commission=${total_commission:,.0f} slippage=${total_slippage:,.0f}")
+        LOGGER.info(f"Return before costs: {return_before_costs:.1%} after costs: {return_after_costs:.1%}")
+        LOGGER.info(f"Annual turnover: {annual_turnover:.1%}")
 
         return results
 
@@ -142,10 +183,18 @@ class Backtester:
         return rebalance_dates
 
     def _apply_filters(self, df: pd.DataFrame, config: BacktestConfig) -> pd.DataFrame:
-        """Apply filters to snapshot."""
+        """Apply filters to snapshot (Phase 6A: enhanced with liquidity filters)."""
         # Price filter
         if "price" in df.columns:
             df = df[pd.to_numeric(df["price"], errors="coerce") >= config.min_price]
+
+        # Volume filter (Phase 6A)
+        if config.min_volume > 0 and "volume" in df.columns:
+            df = df[pd.to_numeric(df["volume"], errors="coerce") >= config.min_volume]
+
+        # Market cap filter (Phase 6A)
+        if config.min_market_cap > 0 and "market_cap" in df.columns:
+            df = df[pd.to_numeric(df["market_cap"], errors="coerce") >= config.min_market_cap]
 
         # Remove missing scores
         if config.score_column in df.columns:
@@ -160,10 +209,13 @@ class Backtester:
         capital: float,
         config: BacktestConfig,
         date: datetime,
-    ) -> tuple[dict, List[dict]]:
-        """Rebalance portfolio to match target allocation."""
+    ) -> tuple[dict, List[dict], dict]:
+        """Rebalance portfolio to match target allocation (Phase 6A: enhanced with transaction costs)."""
         new_portfolio = {}
         trades = []
+        total_trade_value = 0.0
+        total_commission = 0.0
+        total_slippage = 0.0
 
         # Equal weight allocation
         target_tickers = set(target_stocks["ticker"].values)
@@ -185,12 +237,25 @@ class Backtester:
                 # Record trade if different from current
                 current_shares = current_portfolio.get(ticker, 0)
                 if current_shares != target_shares:
+                    shares_traded = abs(target_shares - current_shares)
+                    trade_value = shares_traded * price
+
+                    # Calculate transaction costs (Phase 6A)
+                    commission = trade_value * config.commission_pct
+                    slippage = trade_value * (config.slippage_bps / 10000.0)
+
+                    total_trade_value += trade_value
+                    total_commission += commission
+                    total_slippage += slippage
+
                     trades.append({
                         "date": date,
                         "ticker": ticker,
                         "action": "BUY" if target_shares > current_shares else "SELL",
-                        "shares": abs(target_shares - current_shares),
+                        "shares": shares_traded,
                         "price": price,
+                        "commission": commission,
+                        "slippage": slippage,
                     })
 
         # Sell positions not in target
@@ -201,15 +266,38 @@ class Backtester:
                 price = ticker_data["price"].iloc[0] if len(ticker_data) > 0 else None
 
                 if price:
+                    shares_traded = current_portfolio[ticker]
+                    trade_value = shares_traded * price
+
+                    # Calculate transaction costs (Phase 6A)
+                    commission = trade_value * config.commission_pct
+                    slippage = trade_value * (config.slippage_bps / 10000.0)
+
+                    total_trade_value += trade_value
+                    total_commission += commission
+                    total_slippage += slippage
+
                     trades.append({
                         "date": date,
                         "ticker": ticker,
                         "action": "SELL",
-                        "shares": current_portfolio[ticker],
+                        "shares": shares_traded,
                         "price": price,
+                        "commission": commission,
+                        "slippage": slippage,
                     })
 
-        return new_portfolio, trades
+        # Calculate turnover (total trade value / portfolio value)
+        portfolio_value = capital
+        turnover = total_trade_value / portfolio_value if portfolio_value > 0 else 0.0
+
+        costs = {
+            "commission": total_commission,
+            "slippage": total_slippage,
+            "turnover": turnover,
+        }
+
+        return new_portfolio, trades, costs
 
     def _calculate_portfolio_value(
         self, portfolio: dict, snapshot: pd.DataFrame, cash: float
