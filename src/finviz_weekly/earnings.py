@@ -10,9 +10,9 @@ from bs4 import BeautifulSoup
 from .config import HttpConfig
 from .http import request_with_retries
 from .parse import parse_percent
+from .selectors import FinvizSelectors, FinvizUrls
 
 LOGGER = logging.getLogger(__name__)
-BASE_URL = "https://finviz.com"
 
 
 def scrape_earnings_reactions(ticker: str, session, http_config: HttpConfig) -> List[Dict]:
@@ -30,28 +30,27 @@ def scrape_earnings_reactions(ticker: str, session, http_config: HttpConfig) -> 
     Returns:
         List of earnings reaction data points
     """
-    url = f"{BASE_URL}/quote.ashx?t={ticker}&p=d&ty=ea"
-    
+    url = FinvizUrls.earnings_reactions(ticker)
+
     try:
         response = request_with_retries(session, url, http_config)
         soup = BeautifulSoup(response.text, "html.parser")
-        
-        # Find earnings table
-        # Look for the table with earnings data
-        tables = soup.find_all("table", {"class": "fullview-ratings-outer"})
+
+        # Find earnings table using centralized selector
+        tables = soup.select(FinvizSelectors.EARNINGS_REACTION_TABLE)
         
         earnings_data = []
         
         for table in tables:
             # Check if this is the earnings reaction table
-            header = table.find("tr")
+            header = table.select_one(FinvizSelectors.EARNINGS_REACTION_ROW)
             if not header or "Report Date" not in header.text:
                 continue
-            
-            rows = table.find_all("tr")[1:]  # Skip header
-            
+
+            rows = table.select(FinvizSelectors.EARNINGS_REACTION_ROW)[1:]  # Skip header
+
             for row in rows:
-                cells = row.find_all("td")
+                cells = row.select(FinvizSelectors.EARNINGS_REACTION_CELLS)
                 if len(cells) < 15:  # Need all columns
                     continue
                 
@@ -84,9 +83,9 @@ def scrape_earnings_reactions(ticker: str, session, http_config: HttpConfig) -> 
                     }
                     
                     # Find the percentage changes row (next row)
-                    pct_row = row.find_next_sibling("tr")
+                    pct_row = row.find_next_sibling(FinvizSelectors.EARNINGS_REACTION_ROW)
                     if pct_row:
-                        pct_cells = pct_row.find_all("td")
+                        pct_cells = pct_row.select(FinvizSelectors.EARNINGS_REACTION_CELLS)
                         
                         # Stock percentage changes
                         stock_changes = {}
@@ -108,10 +107,10 @@ def scrape_earnings_reactions(ticker: str, session, http_config: HttpConfig) -> 
                             rsi = int(rsi_cell.text.strip()) if rsi_cell and rsi_cell.text.strip().isdigit() else None
                         
                         # SPY comparison row
-                        spy_row = pct_row.find_next_sibling("tr")
+                        spy_row = pct_row.find_next_sibling(FinvizSelectors.EARNINGS_REACTION_ROW)
                         spy_changes = {}
                         if spy_row:
-                            spy_cells = spy_row.find_all("td")
+                            spy_cells = spy_row.select(FinvizSelectors.EARNINGS_REACTION_CELLS)
                             if len(spy_cells) > 1 and "SPY" in spy_cells[0].text:
                                 spy_changes = {
                                     "spy_day_minus_3_pct": parse_percent(spy_cells[1].text) if len(spy_cells) > 1 else None,

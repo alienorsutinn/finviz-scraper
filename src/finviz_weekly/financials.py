@@ -9,9 +9,9 @@ from bs4 import BeautifulSoup
 from .config import HttpConfig
 from .http import request_with_retries
 from .parse import parse_human_number
+from .selectors import FinvizSelectors, FinvizUrls
 
 LOGGER = logging.getLogger(__name__)
-BASE_URL = "https://finviz.com"
 
 
 def scrape_financial_statements(
@@ -66,41 +66,33 @@ def _scrape_statement(
     Returns:
         Dictionary with statement data
     """
-    # Map statement types to Finviz parameters
-    type_map = {
-        "income": "is",  # Income Statement
-        "balance": "bs",  # Balance Sheet
-        "cash": "cf",    # Cash Flow
-    }
-    
-    param = type_map.get(statement_type, "is")
-    url = f"{BASE_URL}/quote.ashx?t={ticker}&p=d&ty={param}"
-    
+    url = FinvizUrls.financials(ticker, statement_type)
+
     try:
         response = request_with_retries(session, url, http_config)
         soup = BeautifulSoup(response.text, "html.parser")
-        
-        # Find the financial table
-        table = soup.find("table", {"class": "snapshot-table2"})
+
+        # Find the financial table using centralized selector
+        table = soup.select_one(FinvizSelectors.FINANCIAL_TABLE)
         if not table:
             LOGGER.warning(f"No {statement_type} statement table found for {ticker}")
             return {}
-        
+
         data = {}
-        rows = table.find_all("tr")
+        rows = table.select(FinvizSelectors.FINANCIAL_ROW)
         
         # First row typically contains period headers
         header_row = rows[0] if rows else None
         periods = []
         
         if header_row:
-            period_cells = header_row.find_all("td")
+            period_cells = header_row.select(FinvizSelectors.FINANCIAL_CELLS)
             # Skip first cell (empty) and extract period names
             periods = [cell.text.strip() for cell in period_cells[1:]]
-        
+
         # Parse each metric row
         for row in rows[1:]:
-            cells = row.find_all("td")
+            cells = row.select(FinvizSelectors.FINANCIAL_CELLS)
             if len(cells) < 2:
                 continue
             
@@ -123,9 +115,9 @@ def _scrape_statement(
         
         LOGGER.info(f"Scraped {len(data)} metrics from {statement_type} statement for {ticker}")
         return data
-        
-    except Exception as e:
-        LOGGER.error(f"Error scraping {statement_type} statement for {ticker}: {e}")
+
+    except (AttributeError, ValueError, KeyError, IndexError, TypeError) as e:
+        LOGGER.error(f"Error scraping {statement_type} statement for {ticker}: {e}", exc_info=True)
         return {}
 
 
@@ -211,10 +203,10 @@ def calculate_financial_ratios(statements: Dict[str, Dict]) -> Dict[str, float]:
             
             if net_income and net_income != 0:
                 ratios["cash_flow_to_income"] = operating_cash_flow / net_income
-        
-    except Exception as e:
-        LOGGER.error(f"Error calculating financial ratios: {e}")
-    
+
+    except (AttributeError, ValueError, KeyError, TypeError, ZeroDivisionError) as e:
+        LOGGER.error(f"Error calculating financial ratios: {e}", exc_info=True)
+
     return ratios
 
 
@@ -256,10 +248,10 @@ def compare_periods(statements: Dict[str, Dict]) -> Dict[str, Dict]:
         growth["income_growth"] = calc_growth(income, "Net Income")
         growth["asset_growth"] = calc_growth(balance, "Total Assets")
         growth["equity_growth"] = calc_growth(balance, "Total Equity")
-        
-    except Exception as e:
-        LOGGER.error(f"Error calculating period growth: {e}")
-    
+
+    except (AttributeError, ValueError, KeyError, IndexError, TypeError, ZeroDivisionError) as e:
+        LOGGER.error(f"Error calculating period growth: {e}", exc_info=True)
+
     return growth
 
 

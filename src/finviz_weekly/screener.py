@@ -11,15 +11,15 @@ from bs4 import BeautifulSoup
 from .config import HttpConfig
 from .http import request_with_retries
 from .parse import is_valid_ticker
+from .selectors import FinvizUrls
 
 LOGGER = logging.getLogger(__name__)
-BASE_URL = "https://finviz.com"
 
 
 def get_industries(session, http_config: HttpConfig) -> List[str]:
     """Fetch the list of industry codes from Finviz screener."""
 
-    url = f"{BASE_URL}/screener.ashx?v=111"
+    url = FinvizUrls.screener("v=111")
     response = request_with_retries(session, url, http_config)
     soup = BeautifulSoup(response.text, "html.parser")
     select = soup.find("select", {"id": "fs_ind"})
@@ -62,7 +62,7 @@ def get_tickers_for_industry(
     start = 1
     min_sleep, max_sleep = page_sleep_range
     while True:
-        url = f"{BASE_URL}/screener.ashx?v=111&f=ind_{industry_code}&r={start}"
+        url = FinvizUrls.screener(f"v=111&f=ind_{industry_code}&r={start}")
         response = request_with_retries(session, url, http_config)
         page_tickers = _extract_tickers_from_html(response.text)
         LOGGER.debug("Industry %s offset %s found %d tickers", industry_code, start, len(page_tickers))
@@ -93,7 +93,7 @@ def get_tickers_all(
     start = 1
     min_sleep, max_sleep = page_sleep_range
     while True:
-        url = f"{BASE_URL}/screener.ashx?v=111&r={start}"
+        url = FinvizUrls.screener(f"v=111&r={start}")
         response = request_with_retries(session, url, http_config)
         page_tickers = _extract_tickers_from_html(response.text)
         LOGGER.debug("All-screener offset %s found %d tickers", start, len(page_tickers))

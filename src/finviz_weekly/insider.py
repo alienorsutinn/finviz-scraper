@@ -10,9 +10,9 @@ from bs4 import BeautifulSoup
 from .config import HttpConfig
 from .http import request_with_retries
 from .parse import parse_human_number
+from .selectors import FinvizSelectors, FinvizUrls
 
 LOGGER = logging.getLogger(__name__)
-BASE_URL = "https://finviz.com"
 
 
 def scrape_insider_trading(ticker: str, session, http_config: HttpConfig) -> List[Dict]:
@@ -27,23 +27,23 @@ def scrape_insider_trading(ticker: str, session, http_config: HttpConfig) -> Lis
     Returns:
         List of insider trading transactions
     """
-    url = f"{BASE_URL}/quote.ashx?t={ticker}&ty=sec&p=it"
-    
+    url = FinvizUrls.insider(ticker)
+
     try:
         response = request_with_retries(session, url, http_config)
         soup = BeautifulSoup(response.text, "html.parser")
-        
-        # Find the insider trading table
-        table = soup.find("table", {"class": "body-table"})
+
+        # Find the insider trading table using centralized selector
+        table = soup.select_one(FinvizSelectors.INSIDER_TABLE)
         if not table:
             LOGGER.warning(f"No insider trading table found for {ticker}")
             return []
-        
+
         transactions = []
-        rows = table.find_all("tr")[1:]  # Skip header
-        
+        rows = table.select(FinvizSelectors.INSIDER_ROW)[1:]  # Skip header
+
         for row in rows:
-            cells = row.find_all("td")
+            cells = row.select(FinvizSelectors.INSIDER_CELLS)
             if len(cells) < 9:
                 continue
             
@@ -61,15 +61,15 @@ def scrape_insider_trading(ticker: str, session, http_config: HttpConfig) -> Lis
                     "sec_form": cells[8].text.strip(),
                 }
                 transactions.append(transaction)
-            except Exception as e:
+            except (AttributeError, IndexError, ValueError, KeyError, TypeError) as e:
                 LOGGER.debug(f"Error parsing insider row for {ticker}: {e}")
                 continue
-        
+
         LOGGER.info(f"Found {len(transactions)} insider transactions for {ticker}")
         return transactions
-        
-    except Exception as e:
-        LOGGER.error(f"Error scraping insider trading for {ticker}: {e}")
+
+    except (AttributeError, ValueError, KeyError) as e:
+        LOGGER.error(f"Error scraping insider trading for {ticker}: {e}", exc_info=True)
         return []
 
 
@@ -86,34 +86,24 @@ def scrape_insider_summary(session, http_config: HttpConfig,
     Returns:
         List of recent insider transactions across all stocks
     """
-    # Finviz insider trading filters:
-    # Buy: https://finviz.com/insidertrading.ashx?tc=1
-    # Sell: https://finviz.com/insidertrading.ashx?tc=2
-    # All: https://finviz.com/insidertrading.ashx
-    
-    filter_map = {
-        "buy": "?tc=1",
-        "sell": "?tc=2",
-        "all": "",
-    }
-    
-    url = f"{BASE_URL}/insidertrading.ashx{filter_map.get(filter_type, '')}"
-    
+    url = FinvizUrls.insider_summary(filter_type)
+
     try:
         response = request_with_retries(session, url, http_config)
         soup = BeautifulSoup(response.text, "html.parser")
-        
-        # Find the table
-        table = soup.find("table", {"class": "body-table"})
+
+        # Find the table using centralized selector
+        table = soup.select_one(FinvizSelectors.INSIDER_TABLE)
         if not table:
             LOGGER.warning("No insider trading table found")
             return []
-        
+
         transactions = []
-        rows = table.find_all("tr", {"class": ["odd", "even"]})
-        
+        # Select rows with class "odd" or "even"
+        rows = table.select(f"{FinvizSelectors.INSIDER_ROW}.odd, {FinvizSelectors.INSIDER_ROW}.even")
+
         for row in rows:
-            cells = row.find_all("td")
+            cells = row.select(FinvizSelectors.INSIDER_CELLS)
             if len(cells) < 9:
                 continue
             
@@ -134,15 +124,15 @@ def scrape_insider_summary(session, http_config: HttpConfig,
                     "shares_total": parse_human_number(cells[8].text.strip()),
                 }
                 transactions.append(transaction)
-            except Exception as e:
+            except (AttributeError, IndexError, ValueError, KeyError, TypeError) as e:
                 LOGGER.debug(f"Error parsing insider row: {e}")
                 continue
-        
+
         LOGGER.info(f"Found {len(transactions)} insider transactions (filter={filter_type})")
         return transactions
-        
-    except Exception as e:
-        LOGGER.error(f"Error scraping insider trading summary: {e}")
+
+    except (AttributeError, ValueError, KeyError) as e:
+        LOGGER.error(f"Error scraping insider trading summary: {e}", exc_info=True)
         return []
 
 

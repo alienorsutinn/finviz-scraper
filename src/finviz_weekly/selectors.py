@@ -15,7 +15,12 @@ Usage:
 class FinvizSelectors:
     """CSS selectors for Finviz pages - single source of truth."""
 
-    # Earnings page selectors
+    # Earnings reaction page selectors
+    EARNINGS_REACTION_TABLE = "table.fullview-ratings-outer"
+    EARNINGS_REACTION_ROW = "tr"
+    EARNINGS_REACTION_CELLS = "td"
+
+    # General earnings selectors
     EARNINGS_TABLE = "table.body-table, table.snapshot-table2"
     EARNINGS_ROW = "tr.styled-row, tr"
     EARNINGS_DATE_CELL = "td:first-child"
@@ -97,14 +102,52 @@ class FinvizUrls:
         return f"{cls.BASE}/quote.ashx?t={ticker}&p=d"
 
     @classmethod
-    def insider(cls, ticker: str) -> str:
-        """Get insider trading page URL for a ticker."""
-        return f"{cls.BASE}/quote.ashx?t={ticker}&ty=c&p=d&b=1"
+    def earnings_reactions(cls, ticker: str) -> str:
+        """Get earnings reactions page URL for a ticker."""
+        return f"{cls.BASE}/quote.ashx?t={ticker}&p=d&ty=ea"
 
     @classmethod
-    def financials(cls, ticker: str) -> str:
-        """Get financial statements page URL for a ticker."""
-        return f"{cls.BASE}/quote.ashx?t={ticker}&ty=c&ta=1&p=d"
+    def insider(cls, ticker: str) -> str:
+        """Get insider trading page URL for a ticker."""
+        return f"{cls.BASE}/quote.ashx?t={ticker}&ty=sec&p=it"
+
+    @classmethod
+    def insider_summary(cls, filter_type: str = "all") -> str:
+        """
+        Get insider trading summary page URL.
+
+        Args:
+            filter_type: Filter type ("buy", "sell", or "all")
+
+        Returns:
+            URL for insider trading summary page
+        """
+        filter_map = {
+            "buy": "?tc=1",
+            "sell": "?tc=2",
+            "all": "",
+        }
+        return f"{cls.BASE}/insidertrading.ashx{filter_map.get(filter_type, '')}"
+
+    @classmethod
+    def financials(cls, ticker: str, statement_type: str = "income") -> str:
+        """
+        Get financial statements page URL for a ticker.
+
+        Args:
+            ticker: Stock ticker symbol
+            statement_type: Type of statement ("income", "balance", "cash")
+
+        Returns:
+            URL for financial statement page
+        """
+        type_map = {
+            "income": "is",  # Income Statement
+            "balance": "bs",  # Balance Sheet
+            "cash": "cf",    # Cash Flow
+        }
+        param = type_map.get(statement_type, "is")
+        return f"{cls.BASE}/quote.ashx?t={ticker}&p=d&ty={param}"
 
     @classmethod
     def screener(cls, filters: str = "") -> str:

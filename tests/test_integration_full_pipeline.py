@@ -238,12 +238,19 @@ def test_selectors_module():
     insider_url = FinvizUrls.insider("AAPL")
     assert "finviz.com" in insider_url
     assert "AAPL" in insider_url
-    assert "ty=c" in insider_url  # Charts view
+    assert "ty=sec" in insider_url  # Insider trading view
+    assert "p=it" in insider_url  # Insider trading table
 
     financials_url = FinvizUrls.financials("AAPL")
     assert "finviz.com" in financials_url
     assert "AAPL" in financials_url
-    assert "ta=1" in financials_url  # Table view
+    assert "ty=is" in financials_url  # Income statement (default)
+
+    financials_balance_url = FinvizUrls.financials("AAPL", "balance")
+    assert "ty=bs" in financials_balance_url  # Balance sheet
+
+    financials_cash_url = FinvizUrls.financials("AAPL", "cash")
+    assert "ty=cf" in financials_cash_url  # Cash flow
 
     screener_url = FinvizUrls.screener()
     assert "finviz.com" in screener_url
