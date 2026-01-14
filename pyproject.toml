@@ -37,6 +37,28 @@ viz = [
     "jupyter>=1.0",
     "notebook>=7.0",
 ]
+api = [
+    "fastapi>=0.104",
+    "uvicorn[standard]>=0.24",
+    "python-jose[cryptography]>=3.3",
+    "passlib[bcrypt]>=1.7",
+    "python-multipart>=0.0.6",
+    "pydantic>=2.4",
+]
+db = [
+    "sqlalchemy>=2.0",
+    "psycopg2-binary>=2.9",
+    "alembic>=1.12",
+]
+ml = [
+    "scikit-learn>=1.3",
+    "scikit-optimize>=0.9",
+    "scipy>=1.11",
+    "numpy>=1.24",
+]
+all = [
+    "finviz-weekly[viz,api,db,ml]",
+]
 
 [tool.setuptools]
 package-dir = {"" = "src"}

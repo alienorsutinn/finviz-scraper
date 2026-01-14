@@ -87,6 +87,66 @@ services:
       --input candidates
       --max-tickers 20
 
+  # PostgreSQL database
+  postgres:
+    image: postgres:15-alpine
+    container_name: finviz-postgres
+    environment:
+      POSTGRES_DB: finviz
+      POSTGRES_USER: finviz_user
+      POSTGRES_PASSWORD: finviz_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finviz_user -d finviz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Streamlit Dashboard
+  dashboard:
+    build:
+      context: .
+      target: dashboard
+    image: finviz-scraper:dashboard
+    container_name: finviz-dashboard
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - ./dashboard:/app/dashboard
+    ports:
+      - "8501:8501"
+    restart: unless-stopped
+    depends_on:
+      - postgres
+
+  # FastAPI Backend
+  api:
+    build:
+      context: .
+      target: api
+    image: finviz-scraper:api
+    container_name: finviz-api
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://finviz_user:finviz_password@postgres:5432/finviz
+    volumes:
+      - ./data:/app/data
+      - ./api:/app/api
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   data:
+    driver: local
+  postgres_data:
     driver: local

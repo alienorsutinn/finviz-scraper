@@ -1,0 +1,59 @@
+# Alert System Configuration
+# ===========================
+# Configure triggers and notification channels for real-time stock alerts
+
+# Global enable/disable
+enabled: true
+
+# Score-based triggers
+master_score_threshold: 80.0          # Alert on master score >= 80
+quality_value_score_threshold: 75.0   # Alert on quality/value score >= 75
+
+# Enhanced data triggers
+insider_buying_min: 1000000.0         # Alert on $1M+ net insider buying
+earnings_alpha_min: 0.05              # Alert on 5%+ avg earnings alpha vs SPY
+earnings_win_rate_min: 0.75           # Alert on 75%+ earnings win rate
+
+# Financial health triggers
+net_margin_min: 0.20                  # Alert on 20%+ net margin
+roe_min: 0.20                         # Alert on 20%+ ROE
+current_ratio_min: 2.0                # Alert on 2.0+ current ratio
+
+# Conviction triggers
+min_theme_families: 3                 # Alert on stocks in 3+ theme families
+
+# Deduplication (avoid spam)
+dedup_days: 7                         # Don't re-alert on same ticker within 7 days
+
+# Email notifications
+email_enabled: false
+email_to: null                        # your.email@example.com
+email_from: null                      # finviz-alerts@example.com
+smtp_host: null                       # smtp.gmail.com
+smtp_port: 587
+smtp_username: null                   # your.email@example.com
+smtp_password: null                   # your-app-password
+
+# Slack notifications
+slack_enabled: false
+slack_webhook_url: null               # https://hooks.slack.com/services/YOUR/WEBHOOK/URL
+
+# Discord notifications
+discord_enabled: false
+discord_webhook_url: null             # https://discord.com/api/webhooks/YOUR/WEBHOOK/URL
+
+# Example configurations:
+#
+# For Gmail:
+#   smtp_host: smtp.gmail.com
+#   smtp_port: 587
+#   smtp_username: your.email@gmail.com
+#   smtp_password: your-app-specific-password
+#
+# For Slack:
+#   1. Create incoming webhook at https://api.slack.com/messaging/webhooks
+#   2. Copy webhook URL to slack_webhook_url
+#
+# For Discord:
+#   1. Server Settings > Integrations > Webhooks > New Webhook
+#   2. Copy webhook URL to discord_webhook_url
