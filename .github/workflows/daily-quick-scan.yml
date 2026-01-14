@@ -1,0 +1,80 @@
+name: Daily Quick Scan
+
+on:
+  schedule:
+    # Run every weekday at 6 PM UTC (after US market close)
+    - cron: '0 18 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  quick-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Create data directories
+        run: |
+          mkdir -p data/runs
+          mkdir -p data/latest
+
+      - name: Run quick scan (watchlist only)
+        run: |
+          # Create/update watchlist with high-conviction tickers
+          if [ -f data/latest/conviction_2plus.csv ]; then
+            head -50 data/latest/conviction_2plus.csv | tail -n +2 | cut -d',' -f1 > config/daily_watchlist.txt
+          fi
+
+          # Quick scan of watchlist
+          if [ -f config/daily_watchlist.txt ]; then
+            python -m finviz_weekly run \
+              --mode tickers-file \
+              --tickers-file config/daily_watchlist.txt \
+              --include-insider \
+              --rate-per-sec 1.0 \
+              --out data
+          fi
+        env:
+          PYTHONUNBUFFERED: '1'
+        continue-on-error: true
+
+      - name: Quick screen
+        if: success()
+        run: |
+          python -m finviz_weekly screen --out data
+        continue-on-error: true
+
+      - name: Archive daily snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-scan-${{ github.run_number }}
+          path: |
+            data/latest/finviz_scored.csv.gz
+            data/latest/report.md
+          retention-days: 7
+
+      - name: Create summary
+        run: |
+          echo "## Daily Quick Scan Complete" >> $GITHUB_STEP_SUMMARY
+          echo "**Date:** $(date +'%Y-%m-%d %H:%M UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f data/latest/candidates.txt ]; then
+            echo "### Top Candidates" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            head -20 data/latest/candidates.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi

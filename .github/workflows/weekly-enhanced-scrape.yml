@@ -1,0 +1,120 @@
+name: Weekly Enhanced Data Collection
+
+on:
+  schedule:
+    # Run every Sunday at 2 AM UTC (after markets close Friday)
+    - cron: '0 2 * * 0'
+  workflow_dispatch:  # Allow manual triggers
+
+jobs:
+  scrape-and-screen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180  # 3 hours max
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+
+      - name: Create data directories
+        run: |
+          mkdir -p data/runs
+          mkdir -p data/latest
+          mkdir -p data/history
+
+      - name: Run enhanced scraping
+        run: |
+          python -m finviz_weekly run \
+            --mode universe \
+            --ticker-limit 500 \
+            --include-insider \
+            --include-earnings \
+            --include-financials \
+            --rate-per-sec 0.5 \
+            --out data
+        env:
+          PYTHONUNBUFFERED: '1'
+
+      - name: Run screening
+        run: |
+          python -m finviz_weekly screen \
+            --out data \
+            --normalize-by sector \
+            --candidates-max 150
+        env:
+          PYTHONUNBUFFERED: '1'
+
+      - name: Generate quality report
+        run: |
+          python -c "from finviz_weekly.quality import check_latest_data; check_latest_data()"
+        continue-on-error: true
+
+      - name: Archive outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-data-${{ github.run_number }}
+          path: |
+            data/latest/*.parquet
+            data/latest/*.csv
+            data/latest/*.csv.gz
+            data/latest/*.txt
+            data/latest/report.md
+            data/latest/quality_report.json
+          retention-days: 90
+
+      - name: Archive history
+        uses: actions/upload-artifact@v4
+        with:
+          name: history-${{ github.run_number }}
+          path: |
+            data/history/*.parquet
+          retention-days: 365  # Keep history for 1 year
+
+      - name: Commit and push history
+        if: success()
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          git add data/history/*.parquet
+          git diff --quiet && git diff --staged --quiet || (
+            git commit -m "chore: weekly enhanced data collection $(date +'%Y-%m-%d')" &&
+            git push
+          )
+        continue-on-error: true
+
+      - name: Create summary comment
+        if: success()
+        run: |
+          echo "## Weekly Enhanced Data Collection Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Date:** $(date +'%Y-%m-%d %H:%M UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f data/latest/meta.json ]; then
+            echo "### Scraping Results" >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            cat data/latest/meta.json >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ -f data/latest/report.md ]; then
+            echo "### Top Opportunities" >> $GITHUB_STEP_SUMMARY
+            head -50 data/latest/report.md >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "## ⚠️ Weekly Scrape Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Check the workflow logs for details." >> $GITHUB_STEP_SUMMARY

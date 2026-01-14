@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, List
+from typing import Dict, List, Callable, Any, Tuple
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import time
 import pandas as pd
 import requests
 
@@ -14,6 +16,149 @@ from .financials import scrape_financial_statements, calculate_financial_ratios
 LOGGER = logging.getLogger(__name__)
 
 
+def _scrape_with_retry(
+    scraper_func: Callable,
+    ticker: str,
+    session: requests.Session,
+    http_config: HttpConfig,
+    max_retries: int = 3,
+) -> Tuple[str, str, Any]:
+    """
+    Scrape data with exponential backoff retry logic.
+
+    Args:
+        scraper_func: Function to scrape data
+        ticker: Ticker symbol
+        session: Requests session
+        http_config: HTTP configuration
+        max_retries: Maximum number of retry attempts
+
+    Returns:
+        Tuple of (ticker, data_type, result)
+    """
+    data_type = scraper_func.__name__.replace("scrape_", "").replace("_trading", "").replace("_reactions", "").replace("_statements", "")
+
+    for attempt in range(max_retries):
+        try:
+            result = scraper_func(ticker, session, http_config)
+            return (ticker, data_type, result)
+        except requests.exceptions.RequestException as e:
+            if attempt < max_retries - 1:
+                wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
+                LOGGER.warning(
+                    "%s scrape failed for %s (attempt %d/%d): %s. Retrying in %ds...",
+                    data_type, ticker, attempt + 1, max_retries, e, wait_time
+                )
+                time.sleep(wait_time)
+            else:
+                LOGGER.error("%s scrape failed for %s after %d attempts: %s", data_type, ticker, max_retries, e)
+                return (ticker, data_type, None)
+        except Exception as e:
+            LOGGER.error("%s scrape failed for %s: %s", data_type, ticker, e)
+            return (ticker, data_type, None)
+
+    return (ticker, data_type, None)
+
+
+def _scrape_enhanced_data_parallel(
+    tickers: List[str],
+    session: requests.Session,
+    http_config: HttpConfig,
+    include_insider: bool,
+    include_earnings: bool,
+    include_financials: bool,
+    max_workers: int,
+) -> Dict[str, Dict]:
+    """
+    Scrape enhanced data using parallel workers.
+
+    This function scrapes multiple data sources concurrently for each ticker,
+    significantly speeding up data collection while respecting rate limits.
+    """
+    LOGGER.info("Starting parallel enhanced data scraping with %d workers", max_workers)
+
+    enhanced_data = {}
+    for ticker in tickers:
+        enhanced_data[ticker] = {
+            "insider": None,
+            "earnings": None,
+            "financials": None,
+        }
+
+    # Build list of scraping tasks
+    tasks = []
+    if include_insider:
+        for ticker in tickers:
+            tasks.append((scrape_insider_trading, ticker))
+
+    if include_earnings:
+        for ticker in tickers:
+            tasks.append((scrape_earnings_reactions, ticker))
+
+    if include_financials:
+        for ticker in tickers:
+            tasks.append((scrape_financial_statements, ticker))
+
+    LOGGER.info("Queued %d scraping tasks for %d tickers", len(tasks), len(tickers))
+
+    # Execute tasks in parallel
+    all_insider = []
+    all_earnings = []
+    all_financials = []
+    completed = 0
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Submit all tasks
+        future_to_task = {
+            executor.submit(_scrape_with_retry, func, ticker, session, http_config): (func, ticker)
+            for func, ticker in tasks
+        }
+
+        # Process results as they complete
+        for future in as_completed(future_to_task):
+            ticker, data_type, result = future.result()
+            completed += 1
+
+            if result:
+                if data_type == "insider":
+                    all_insider.extend(result)
+                elif data_type == "earnings":
+                    all_earnings.extend(result)
+                elif data_type == "financials":
+                    all_financials.append((ticker, result))
+
+            if completed % 10 == 0:
+                LOGGER.info("Progress: %d/%d tasks completed (%.0f%%)", completed, len(tasks), completed / len(tasks) * 100)
+
+    LOGGER.info("Parallel scraping complete: %d/%d tasks finished", completed, len(tasks))
+
+    # Aggregate insider data
+    if all_insider:
+        insider_stats = aggregate_insider_by_ticker(all_insider)
+        for ticker, stats in insider_stats.items():
+            if ticker in enhanced_data:
+                enhanced_data[ticker]["insider"] = stats
+        LOGGER.info("Aggregated insider data for %d tickers", len(insider_stats))
+
+    # Aggregate earnings data
+    if all_earnings:
+        earnings_stats = aggregate_earnings_stats(all_earnings)
+        for ticker, stats in earnings_stats.items():
+            if ticker in enhanced_data:
+                enhanced_data[ticker]["earnings"] = stats
+        LOGGER.info("Aggregated earnings data for %d tickers", len(earnings_stats))
+
+    # Process financial data
+    if all_financials:
+        for ticker, statements in all_financials:
+            if ticker in enhanced_data and statements:
+                ratios = calculate_financial_ratios(statements)
+                enhanced_data[ticker]["financials"] = ratios
+        LOGGER.info("Calculated financial ratios for %d tickers", len(all_financials))
+
+    return enhanced_data
+
+
 def scrape_enhanced_data(
     tickers: List[str],
     session: requests.Session,
@@ -21,6 +166,8 @@ def scrape_enhanced_data(
     include_insider: bool = False,
     include_earnings: bool = False,
     include_financials: bool = False,
+    parallel: bool = True,
+    max_workers: int = 3,
 ) -> Dict[str, Dict]:
     """
     Scrape enhanced data sources for given tickers.
@@ -32,6 +179,8 @@ def scrape_enhanced_data(
         include_insider: Whether to scrape insider trading data
         include_earnings: Whether to scrape earnings reaction data
         include_financials: Whether to scrape financial statements
+        parallel: Whether to use parallel scraping (default: True)
+        max_workers: Maximum number of parallel workers (default: 3)
 
     Returns:
         Dictionary with enhanced data by ticker
@@ -46,6 +195,16 @@ def scrape_enhanced_data(
             "financials": None,
         }
 
+    # Use parallel scraping if enabled and multiple sources requested
+    sources_count = sum([include_insider, include_earnings, include_financials])
+    if parallel and sources_count > 1:
+        return _scrape_enhanced_data_parallel(
+            tickers, session, http_config,
+            include_insider, include_earnings, include_financials,
+            max_workers
+        )
+
+    # Sequential scraping (fallback or single source)
     # Scrape insider trading
     if include_insider:
         LOGGER.info("Scraping insider trading for %d tickers...", len(tickers))

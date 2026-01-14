@@ -30,6 +30,13 @@ dev = [
     "pre-commit>=3.6",
     "bandit>=1.7",
 ]
+viz = [
+    "streamlit>=1.28",
+    "plotly>=5.17",
+    "matplotlib>=3.8",
+    "jupyter>=1.0",
+    "notebook>=7.0",
+]
 
 [tool.setuptools]
 package-dir = {"" = "src"}
