@@ -21,6 +21,30 @@ Requires-Dist: flake8>=7.0; extra == "dev"
 Requires-Dist: mypy>=1.8; extra == "dev"
 Requires-Dist: pre-commit>=3.6; extra == "dev"
 Requires-Dist: bandit>=1.7; extra == "dev"
+Provides-Extra: viz
+Requires-Dist: streamlit>=1.28; extra == "viz"
+Requires-Dist: plotly>=5.17; extra == "viz"
+Requires-Dist: matplotlib>=3.8; extra == "viz"
+Requires-Dist: jupyter>=1.0; extra == "viz"
+Requires-Dist: notebook>=7.0; extra == "viz"
+Provides-Extra: api
+Requires-Dist: fastapi>=0.104; extra == "api"
+Requires-Dist: uvicorn[standard]>=0.24; extra == "api"
+Requires-Dist: python-jose[cryptography]>=3.3; extra == "api"
+Requires-Dist: passlib[bcrypt]>=1.7; extra == "api"
+Requires-Dist: python-multipart>=0.0.6; extra == "api"
+Requires-Dist: pydantic>=2.4; extra == "api"
+Provides-Extra: db
+Requires-Dist: sqlalchemy>=2.0; extra == "db"
+Requires-Dist: psycopg2-binary>=2.9; extra == "db"
+Requires-Dist: alembic>=1.12; extra == "db"
+Provides-Extra: ml
+Requires-Dist: scikit-learn>=1.3; extra == "ml"
+Requires-Dist: scikit-optimize>=0.9; extra == "ml"
+Requires-Dist: scipy>=1.11; extra == "ml"
+Requires-Dist: numpy>=1.24; extra == "ml"
+Provides-Extra: all
+Requires-Dist: finviz-weekly[api,db,ml,viz]; extra == "all"
 
 # Finviz Weekly Scraper
 
@@ -99,12 +123,35 @@ python -m finviz_weekly run --mode tickers --tickers "AAPL,MSFT,GOOGL" \
 - `--include-insider` - Add insider trading data (net buying/selling)
 - `--include-earnings` - Add earnings reaction history (alpha vs SPY)
 - `--include-financials` - Add financial ratios (ROE, margins, liquidity)
-- `--enhanced-scoring` - Use enhanced scoring model (coming soon)
 
 This adds ~15 new columns to your output including:
 - `insider_net_value`, `insider_total_buys`, `insider_total_sells`
 - `earnings_avg_alpha`, `earnings_win_rate`, `earnings_total_events`
 - `net_margin`, `roe`, `roa`, `current_ratio`, `debt_to_equity`
+
+### Enhanced Screening with New Investment Themes
+
+**NEW (Phase 4):** Screening automatically detects enhanced data and creates new investment themes:
+
+```bash
+# 1. Scrape with enhanced data
+python -m finviz_weekly run --mode universe --ticker-limit 100 \
+  --include-insider --include-earnings --include-financials \
+  --out data
+
+# 2. Screen (automatically creates enhanced themes)
+python -m finviz_weekly screen --out data
+```
+
+**Enhanced themes automatically created:**
+- `insider_momentum` - Strong insider buying + momentum
+- `earnings_surprise` - Consistent earnings beats
+- `quality_growth_enhanced` - Quality + financial health
+- `enhanced_master` - All enhanced factors combined
+
+**Outputs:** `data/latest/top50_<theme>.csv` for each enhanced theme
+
+📖 **See [docs/ENHANCED_SCREENING.md](docs/ENHANCED_SCREENING.md) for complete guide with strategies and examples!**
 
 Key CLI options:
 - `--mode [universe|tickers]`
@@ -126,9 +173,13 @@ Outputs are written to:
 - `data/history/finviz_fundamentals_history.parquet` (append-only with `as_of_date`)
 
 ## Weekly workflow
-1. Run scraping (`python -m finviz_weekly run ...`).
+1. Run scraping with enhanced data (`python -m finviz_weekly run --include-insider --include-earnings --include-financials ...`).
 2. Run screening (`python -m finviz_weekly screen --out data`). This writes `finviz_scored.parquet`/`csv.gz` plus candidates and conviction lists.
-3. Run the debate layer (research on by default, safe for Brave free tier with 12 queries/ticker):  
+3. **NEW:** Enhanced reports automatically generated in `data/latest/report.md` with:
+   - 🏢 Insider trading highlights (top buying/selling)
+   - 📈 Earnings quality insights (consistent beaters)
+   - 💪 Financial health rankings (profitability + liquidity)
+4. Run the debate layer (research on by default, safe for Brave free tier with 12 queries/ticker):
    `python -m finviz_weekly debate --out data --input candidates --max-tickers 20`
    - Env vars: `BRAVE_API_KEY` (primary search), optional `GOOGLE_CSE_API_KEY` + `GOOGLE_CSE_CX` (fallback), `OPENAI_API_KEY` and `OPENAI_MODEL` (default `gpt-5-mini`). Use `--provider mock` to force offline mode for tests.
    - Debate outputs: `data/debate/YYYY-MM-DD/{ticker}.json`, `{ticker}_evidence.json`, `debate_results.csv`, `debate_report.md`.
@@ -197,23 +248,43 @@ passed = check_latest_data()
 
 ### Backtesting
 
-Test your scoring strategy on historical data:
+Test scoring strategies on historical data:
 
 ```bash
-# Run backtest
+# Run backtest (any score column supported)
 python -m finviz_weekly.backtest \
-  --history data/history/finviz_fundamentals_history.parquet \
+  --history data/history/finviz_scored_history.parquet \
   --start 2024-01-01 \
   --end 2025-01-01 \
   --top-n 20 \
   --rebalance-days 7
 ```
 
+**Compare multiple strategies:**
+```python
+from finviz_weekly.backtest import compare_strategies
+
+strategies = [
+    ("Master", "score_master"),
+    ("Quality Value", "score_quality_value"),
+    ("Insider Momentum", "score_insider_momentum"),  # Enhanced
+    ("Earnings Surprise", "score_earnings_surprise"),  # Enhanced
+]
+
+results = compare_strategies(
+    Path("data/history/finviz_scored_history.parquet"),
+    "2024-01-01", "2025-01-01",
+    strategies, top_n=20
+)
+```
+
 Results include:
 - Total and annual returns
 - Sharpe ratio
 - Maximum drawdown
-- Win rate and trade statistics
+- Number of trades
+
+📖 **See [docs/BACKTESTING.md](docs/BACKTESTING.md) for complete backtesting guide!**
 
 ### Pre-commit Hooks
 
