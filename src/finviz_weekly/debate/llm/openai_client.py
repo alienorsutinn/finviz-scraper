@@ -16,8 +16,17 @@ class OpenAIClient(LLMClient):
         except ImportError as exc:  # pragma: no cover
             raise RuntimeError("openai package not installed; install openai to use OpenAIClient") from exc
 
-        self._client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-        self.model = model or os.environ.get("OPENAI_MODEL", "gpt-5-mini")
+        # Validate API key exists
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError(
+                "❌ OPENAI_API_KEY environment variable required.\n"
+                "Get one at: https://platform.openai.com/api-keys\n"
+                "Then run: export OPENAI_API_KEY='sk-...'"
+            )
+
+        self._client = openai.OpenAI(api_key=api_key)
+        self.model = model or os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
 
     def generate_json(self, prompt: str, schema_hint: str | None = None, *, max_tokens: int = 512, temperature: float = 0.3) -> Dict[str, Any]:  # pragma: no cover - network
         completion = self._client.chat.completions.create(

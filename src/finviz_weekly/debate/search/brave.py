@@ -17,6 +17,12 @@ class BraveSearchProvider(SearchProvider):
     name = "brave"
 
     def __init__(self, *, api_key: str, cache_dir: Path, cache_days: int = 14, user_agent: str = "finviz-weekly/1.0"):
+        if not api_key:
+            raise ValueError(
+                "❌ BRAVE_API_KEY required for BraveSearchProvider.\n"
+                "Get one at: https://brave.com/search/api/\n"
+                "Then run: export BRAVE_API_KEY='your_key'"
+            )
         self.api_key = api_key
         self.cache_dir = cache_dir
         self.cache_days = cache_days

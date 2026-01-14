@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import requests
 from datetime import date
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional
@@ -71,8 +72,9 @@ def build_universe(session, config: AppConfig) -> List[str]:
         if tickers_all:
             LOGGER.info("Universe (all-screener) tickers=%d", len(tickers_all))
             return tickers_all[:limit] if limit else tickers_all
-    except Exception as e:
-        LOGGER.warning("All-screener universe failed (%s). Falling back to per-industry union.", e)
+    except (requests.exceptions.RequestException, TimeoutError, ValueError, AttributeError) as e:
+        LOGGER.error("All-screener universe failed (%s: %s). Falling back to per-industry union.",
+                     type(e).__name__, e, exc_info=True)
 
     industries = get_industries(session, config.http)
     if config.run.industry_limit:
@@ -239,7 +241,19 @@ def execute(session, config: AppConfig) -> pd.DataFrame:
     run_dir = prepare_run_dir(config.run.out_dir, as_of, resume=config.run.resume)
 
     try:
-        df = asyncio.run(run_pipeline(session, config, run_dir, as_of))
+        # Add timeout to prevent infinite hangs (default: 2 hours for large scrapes)
+        timeout_secs = config.run.timeout_secs if hasattr(config.run, 'timeout_secs') else 7200
+        df = asyncio.run(asyncio.wait_for(
+            run_pipeline(session, config, run_dir, as_of),
+            timeout=timeout_secs
+        ))
+    except asyncio.TimeoutError:
+        LOGGER.error(f"Scraping timed out after {timeout_secs} seconds. Salvaging partial results...")
+        records, _ = load_checkpoint(run_dir)
+        df = normalize_records(records) if records else pd.DataFrame()
+        save_partial_outputs(df, run_dir, config.run.formats)
+        write_meta(run_dir, {"as_of": as_of.isoformat(), "timeout": True, "rows": int(len(df))})
+        raise
     except KeyboardInterrupt:
         # salvage from checkpoint and write a partial snapshot
         LOGGER.warning("Interrupted. Salvaging from checkpoint and writing partial snapshot...")

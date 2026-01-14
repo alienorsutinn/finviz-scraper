@@ -92,9 +92,9 @@ services:
     image: postgres:15-alpine
     container_name: finviz-postgres
     environment:
-      POSTGRES_DB: finviz
-      POSTGRES_USER: finviz_user
-      POSTGRES_PASSWORD: finviz_password
+      POSTGRES_DB: ${POSTGRES_DB:-finviz}
+      POSTGRES_USER: ${POSTGRES_USER:-finviz_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_in_production}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -134,7 +134,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql://finviz_user:finviz_password@postgres:5432/finviz
+      DATABASE_URL: postgresql://${POSTGRES_USER:-finviz_user}:${POSTGRES_PASSWORD:-change_me_in_production}@postgres:5432/${POSTGRES_DB:-finviz}
     volumes:
       - ./data:/app/data
       - ./api:/app/api

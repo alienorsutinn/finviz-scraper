@@ -17,6 +17,13 @@ class GoogleCSEProvider(SearchProvider):
     name = "google"
 
     def __init__(self, *, api_key: str, cx: str, cache_dir: Path, cache_days: int = 14, user_agent: str = "finviz-weekly/1.0"):
+        if not api_key or not cx:
+            raise ValueError(
+                "❌ GOOGLE_CSE_API_KEY and GOOGLE_CSE_CX required for GoogleCSEProvider.\n"
+                "Get API key at: https://console.cloud.google.com/apis/credentials\n"
+                "Get CSE ID at: https://programmablesearchengine.google.com/\n"
+                "Then run: export GOOGLE_CSE_API_KEY='your_key' GOOGLE_CSE_CX='your_cx'"
+            )
         self.api_key = api_key
         self.cx = cx
         self.cache_dir = cache_dir
