@@ -12,3 +12,7 @@ build/
 *.egg
 .env
 .pytest_cache
+
+# Coverage reports
+.coverage
+htmlcov/
