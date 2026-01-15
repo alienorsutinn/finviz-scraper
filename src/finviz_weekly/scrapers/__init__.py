@@ -18,6 +18,13 @@ from .analyst_estimates import (
     AnalystEstimatesScraper,
     calculate_analyst_score,
 )
+from .institutional_ownership import (
+    InstitutionalData,
+    InstitutionalConfig,
+    InstitutionalOwnershipScraper,
+    calculate_institutional_score,
+    create_institutional_features,
+)
 
 __all__ = [
     "OptionsData",
@@ -32,4 +39,9 @@ __all__ = [
     "AnalystEstimatesConfig",
     "AnalystEstimatesScraper",
     "calculate_analyst_score",
+    "InstitutionalData",
+    "InstitutionalConfig",
+    "InstitutionalOwnershipScraper",
+    "calculate_institutional_score",
+    "create_institutional_features",
 ]

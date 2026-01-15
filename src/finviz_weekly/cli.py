@@ -38,6 +38,7 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
             "correlation", "custom-factors",
             "options-flow", "short-interest",
             "analyst-estimates", "regime-status",
+            "institutional", "macro", "sentiment", "stacking",
         ],
         help="Command to execute (default: run).",
     )
@@ -326,6 +327,49 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--analyst-output",
         help="Path to save analyst estimates data (JSON or CSV).",
+    )
+
+    # Institutional ownership args (institutional command)
+    parser.add_argument(
+        "--min-holders",
+        type=int,
+        default=5,
+        help="Minimum institutional holders for analysis (default: 5).",
+    )
+    parser.add_argument(
+        "--institutional-output",
+        help="Path to save institutional ownership data (JSON or CSV).",
+    )
+
+    # Macro indicators args (macro command)
+    parser.add_argument(
+        "--macro-output",
+        help="Path to save macro indicators data (JSON).",
+    )
+
+    # News sentiment args (sentiment command)
+    parser.add_argument(
+        "--use-llm-sentiment",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Use LLM for sentiment analysis (requires ANTHROPIC_API_KEY).",
+    )
+    parser.add_argument(
+        "--sentiment-output",
+        help="Path to save sentiment data (JSON or CSV).",
+    )
+
+    # Stacking ensemble args (stacking command)
+    parser.add_argument(
+        "--stacking-action",
+        choices=["train", "predict", "evaluate", "weights"],
+        default="weights",
+        help="Stacking ensemble action (default: weights).",
+    )
+    parser.add_argument(
+        "--ensemble-path",
+        default="models/ensemble",
+        help="Path to save/load stacking ensemble (default: models/ensemble).",
     )
 
     return parser.parse_args(argv)
@@ -1011,6 +1055,290 @@ def _run_analyst_estimates_command(args: argparse.Namespace) -> None:
         print(f"\nData saved to: {output_path}")
 
 
+def _run_institutional_command(args: argparse.Namespace) -> None:
+    """Run institutional ownership scraper command."""
+    from .scrapers.institutional_ownership import (
+        InstitutionalOwnershipScraper,
+        InstitutionalConfig,
+    )
+
+    tickers = []
+    if args.ticker:
+        tickers = [args.ticker.upper()]
+    elif args.tickers:
+        tickers = [t.strip().upper() for t in args.tickers.split(",") if t.strip()]
+    elif args.tickers_file:
+        path = Path(args.tickers_file)
+        if path.exists():
+            tickers = [t.strip().upper() for t in path.read_text().splitlines() if t.strip()]
+
+    if not tickers:
+        raise SystemExit("Error: Must provide --ticker, --tickers, or --tickers-file")
+
+    LOGGER.info("Fetching institutional ownership for %d tickers", len(tickers))
+
+    config = InstitutionalConfig(min_holders=args.min_holders)
+    scraper = InstitutionalOwnershipScraper(config)
+
+    # Fetch data
+    inst_data = scraper.fetch_batch(tickers, show_progress=True)
+
+    if not inst_data:
+        LOGGER.warning("No institutional data found")
+        return
+
+    # Print summary
+    print("\nInstitutional Ownership Summary")
+    print("=" * 70)
+    print(f"Tickers fetched: {len(inst_data)}/{len(tickers)}")
+    print()
+
+    # Get top picks
+    top_picks = scraper.get_top_institutional_picks(inst_data, top_n=15)
+    if not top_picks.empty:
+        print("Top Institutional Picks (by momentum score):")
+        print("-" * 70)
+        for _, row in top_picks.head(10).iterrows():
+            print(f"  {row['ticker']:6} | Holders: {row['num_holders']:3} | "
+                  f"New Pos: {row['new_positions']:2} | "
+                  f"Increased: {row['increased']:2} | "
+                  f"Score: {row['combined_score']:.0f}")
+        print()
+
+    # Detect accumulation/distribution
+    accumulating = scraper.detect_accumulation(inst_data)
+    distributing = scraper.detect_distribution(inst_data)
+
+    if accumulating:
+        print(f"Accumulation Detected ({len(accumulating)} stocks):")
+        print(f"  {', '.join(accumulating[:10])}")
+        print()
+
+    if distributing:
+        print(f"Distribution Detected ({len(distributing)} stocks):")
+        print(f"  {', '.join(distributing[:10])}")
+        print()
+
+    # Save output
+    if args.institutional_output:
+        from .scrapers.institutional_ownership import create_institutional_features
+        output_path = Path(args.institutional_output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        df = create_institutional_features(inst_data)
+        if output_path.suffix == ".csv":
+            df.to_csv(output_path)
+        else:
+            df.to_json(output_path, orient="records", indent=2)
+
+        print(f"Data saved to: {output_path}")
+
+
+def _run_macro_command(args: argparse.Namespace) -> None:
+    """Run macro indicators command."""
+    from .macro_indicators import MacroIndicators, get_macro_summary
+
+    print("\nFetching macro indicators...")
+
+    summary = get_macro_summary()
+
+    print("\nMacro Environment Summary")
+    print("=" * 60)
+    print(f"Date: {summary['date']}")
+    print(f"Regime: {summary['regime'].upper()}")
+    print(f"Risk Score: {summary['risk_score']:.0f}/100")
+    print(f"Recession Probability: {summary['recession_probability']:.0f}%")
+    print()
+
+    print("Yield Curve:")
+    yc = summary['yield_curve']
+    print(f"  State: {yc['state'].upper()}")
+    print(f"  2Y-10Y Spread: {yc['spread_2y10y']:.2f}%" if yc['spread_2y10y'] else "  2Y-10Y Spread: N/A")
+    print(f"  10Y Yield: {yc['10y_yield']:.2f}%" if yc['10y_yield'] else "  10Y Yield: N/A")
+    print()
+
+    print("Volatility:")
+    vol = summary['volatility']
+    print(f"  VIX: {vol['vix']:.1f}" if vol['vix'] else "  VIX: N/A")
+    print(f"  Percentile: {vol['percentile']:.0f}%" if vol['percentile'] else "  Percentile: N/A")
+    print(f"  Term Structure: {vol['term_structure'].upper()}")
+    print()
+
+    print("Credit:")
+    credit = summary['credit']
+    print(f"  HY Spread: {credit['hy_spread']:.2f}%" if credit['hy_spread'] else "  HY Spread: N/A")
+    print(f"  Stress: {'YES' if credit['stress'] else 'No'}")
+    print()
+
+    print("Dollar:")
+    print(f"  Trend: {summary['dollar']['trend'].upper()}")
+    print()
+
+    print(f"Position Size Multiplier: {summary['position_size_mult']:.2f}")
+    print()
+
+    if summary['sector_tilts']:
+        print("Sector Tilts (based on macro):")
+        for sector, tilt in sorted(summary['sector_tilts'].items(), key=lambda x: -x[1]):
+            direction = "+" if tilt >= 0 else ""
+            print(f"  {sector:25} {direction}{tilt:.1f}")
+
+    # Save output
+    if args.macro_output:
+        output_path = Path(args.macro_output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(output_path, "w") as f:
+            json.dump(summary, f, indent=2, default=str)
+
+        print(f"\nData saved to: {output_path}")
+
+
+def _run_sentiment_command(args: argparse.Namespace) -> None:
+    """Run news sentiment analyzer command."""
+    from .news_sentiment import NewsSentimentScraper, SentimentConfig, create_sentiment_features
+
+    tickers = []
+    if args.ticker:
+        tickers = [args.ticker.upper()]
+    elif args.tickers:
+        tickers = [t.strip().upper() for t in args.tickers.split(",") if t.strip()]
+    elif args.tickers_file:
+        path = Path(args.tickers_file)
+        if path.exists():
+            tickers = [t.strip().upper() for t in path.read_text().splitlines() if t.strip()]
+
+    if not tickers:
+        raise SystemExit("Error: Must provide --ticker, --tickers, or --tickers-file")
+
+    LOGGER.info("Fetching news sentiment for %d tickers", len(tickers))
+
+    config = SentimentConfig(use_llm=args.use_llm_sentiment)
+    scraper = NewsSentimentScraper(config)
+
+    # Fetch data
+    sentiment_data = scraper.fetch_batch(tickers, show_progress=True)
+
+    if not sentiment_data:
+        LOGGER.warning("No sentiment data found")
+        return
+
+    # Print summary
+    print("\nNews Sentiment Summary")
+    print("=" * 70)
+    print(f"Tickers analyzed: {len(sentiment_data)}/{len(tickers)}")
+    print(f"Using LLM: {args.use_llm_sentiment}")
+    print()
+
+    # Get top sentiment
+    top_sent = scraper.get_top_sentiment(sentiment_data, top_n=15)
+    if not top_sent.empty:
+        print("Most Positive Sentiment:")
+        print("-" * 70)
+        for _, row in top_sent.head(10).iterrows():
+            label = "POS" if row['avg_sentiment'] > 0.1 else ("NEG" if row['avg_sentiment'] < -0.1 else "NEU")
+            print(f"  {row['ticker']:6} | Sent: {row['avg_sentiment']:+.2f} ({label}) | "
+                  f"News: {row['news_count']:2} | "
+                  f"Pos%: {row['positive_ratio']*100:.0f}% | "
+                  f"Score: {row['combined_score']:.0f}")
+        print()
+
+    # Get worst sentiment
+    worst_sent = scraper.get_worst_sentiment(sentiment_data, top_n=10)
+    if not worst_sent.empty:
+        print("Most Negative Sentiment:")
+        print("-" * 70)
+        for _, row in worst_sent.head(5).iterrows():
+            print(f"  {row['ticker']:6} | Sent: {row['avg_sentiment']:+.2f} | "
+                  f"News: {row['news_count']:2} | "
+                  f"Neg%: {row['negative_ratio']*100:.0f}%")
+        print()
+
+    # Save output
+    if args.sentiment_output:
+        output_path = Path(args.sentiment_output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        df = create_sentiment_features(sentiment_data)
+        if output_path.suffix == ".csv":
+            df.to_csv(output_path)
+        else:
+            df.to_json(output_path, orient="records", indent=2)
+
+        print(f"Data saved to: {output_path}")
+
+
+def _run_stacking_command(args: argparse.Namespace) -> None:
+    """Run stacking ensemble command."""
+    from .stacking_ensemble import StackingEnsemble, create_default_ensemble
+
+    action = args.stacking_action
+    ensemble_path = Path(args.ensemble_path)
+
+    if action == "weights":
+        # Show default configuration
+        ensemble = create_default_ensemble()
+        print("\nStacking Ensemble Configuration")
+        print("=" * 60)
+        print(f"Meta-model type: {ensemble.config.meta_model_type}")
+        print(f"Use CV predictions: {ensemble.config.use_cv_predictions}")
+        print(f"N folds: {ensemble.config.n_folds}")
+        print(f"Dynamic weighting: {ensemble.config.dynamic_weighting}")
+        print()
+
+        print("Base Models:")
+        print("-" * 60)
+        for model_cfg in ensemble.config.base_models:
+            print(f"  {model_cfg.name}")
+            print(f"    Type: {model_cfg.model_type}")
+            print(f"    Initial Weight: {model_cfg.weight:.2f}")
+            if model_cfg.params:
+                print(f"    Params: {model_cfg.params}")
+            print()
+
+    elif action == "train":
+        # Load training data
+        data_dir = Path(args.out)
+        history_path = data_dir / "history" / "finviz_fundamentals_history.parquet"
+        prices_path = data_dir / "history" / "prices.parquet"
+
+        if not history_path.exists():
+            raise SystemExit(f"Error: History file not found: {history_path}")
+
+        print("Loading training data...")
+        features_df = pd.read_parquet(history_path)
+        prices_df = pd.read_parquet(prices_path) if prices_path.exists() else None
+
+        # Create target variable (forward returns)
+        # This is a simplified example - would need proper implementation
+        print("Preparing features and target...")
+
+        # For now, just show what would happen
+        print(f"Features shape: {features_df.shape}")
+        print("\nNote: Full training requires proper target calculation.")
+        print("Use the 'train' command with ML pipeline for complete training.")
+
+    elif action == "evaluate":
+        if not ensemble_path.exists():
+            raise SystemExit(f"Error: Ensemble not found at {ensemble_path}")
+
+        ensemble = StackingEnsemble.load(str(ensemble_path))
+        print(f"Loaded ensemble from {ensemble_path}")
+        print(f"Is fitted: {ensemble.is_fitted}")
+        print(f"Base models: {list(ensemble.base_models.keys())}")
+
+        if ensemble.dynamic_weights:
+            print("\nDynamic Weights:")
+            for name, weight in ensemble.dynamic_weights.items():
+                print(f"  {name}: {weight:.3f}")
+
+        if ensemble.performance_history:
+            print(f"\nPerformance history: {len(ensemble.performance_history)} records")
+
+    elif action == "predict":
+        raise SystemExit("Error: predict action requires input data. Use programmatic API.")
+
+
 def _run_regime_status_command(args: argparse.Namespace) -> None:
     """Run regime status command."""
     import yfinance as yf
@@ -1282,6 +1610,22 @@ def main(argv: List[str] | None = None) -> None:
 
     if args.command == "regime-status":
         _run_regime_status_command(args)
+        return
+
+    if args.command == "institutional":
+        _run_institutional_command(args)
+        return
+
+    if args.command == "macro":
+        _run_macro_command(args)
+        return
+
+    if args.command == "sentiment":
+        _run_sentiment_command(args)
+        return
+
+    if args.command == "stacking":
+        _run_stacking_command(args)
         return
 
     # run
