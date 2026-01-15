@@ -7,6 +7,8 @@ import logging
 from pathlib import Path
 from typing import List
 
+import pandas as pd
+
 from .config import env_config
 from .http import create_session
 from .pipeline import execute
@@ -35,6 +37,7 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
             "model-registry", "drift-check", "retrain",
             "correlation", "custom-factors",
             "options-flow", "short-interest",
+            "analyst-estimates", "regime-status",
         ],
         help="Command to execute (default: run).",
     )
@@ -305,6 +308,24 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--short-output",
         help="Path to save short interest data (JSON or CSV).",
+    )
+
+    # Analyst estimates args (analyst-estimates command)
+    parser.add_argument(
+        "--min-revision-pct",
+        type=float,
+        default=5.0,
+        help="Minimum EPS revision percentage to flag (default: 5.0).",
+    )
+    parser.add_argument(
+        "--min-analysts",
+        type=int,
+        default=5,
+        help="Minimum number of analyst ratings (default: 5).",
+    )
+    parser.add_argument(
+        "--analyst-output",
+        help="Path to save analyst estimates data (JSON or CSV).",
     )
 
     return parser.parse_args(argv)
@@ -905,6 +926,159 @@ def _run_short_interest_command(args: argparse.Namespace) -> None:
         print(f"\nData saved to: {output_path}")
 
 
+def _run_analyst_estimates_command(args: argparse.Namespace) -> None:
+    """Run analyst estimates scraper command."""
+    from .scrapers.analyst_estimates import AnalystEstimatesScraper
+
+    tickers = []
+    if args.ticker:
+        tickers = [args.ticker.upper()]
+    elif args.tickers:
+        tickers = [t.strip().upper() for t in args.tickers.split(",") if t.strip()]
+    elif args.tickers_file:
+        path = Path(args.tickers_file)
+        if path.exists():
+            tickers = [t.strip().upper() for t in path.read_text().splitlines() if t.strip()]
+
+    if not tickers:
+        raise SystemExit("Error: Must provide --ticker, --tickers, or --tickers-file")
+
+    LOGGER.info("Fetching analyst estimates for %d tickers", len(tickers))
+
+    scraper = AnalystEstimatesScraper()
+
+    # Progress callback
+    def progress(current, total, ticker):
+        print(f"  [{current}/{total}] {ticker}", end="\r")
+
+    # Fetch data
+    analyst_data = scraper.fetch_batch(tickers, progress_callback=progress)
+    print()  # Clear progress line
+
+    if not analyst_data:
+        LOGGER.warning("No analyst data found")
+        return
+
+    # Print summary
+    print("\nAnalyst Estimates Summary")
+    print("=" * 70)
+    print(f"Tickers fetched: {len(analyst_data)}/{len(tickers)}")
+    print()
+
+    # Get revision leaders
+    leaders = scraper.get_revision_leaders(analyst_data, min_revision_pct=args.min_revision_pct)
+    if not leaders.empty:
+        print(f"EPS Revision Leaders (>{args.min_revision_pct}% revision):")
+        print("-" * 70)
+        for _, row in leaders.head(10).iterrows():
+            r7 = f"{row['revision_7d']:.1f}%" if row['revision_7d'] else "N/A"
+            r30 = f"{row['revision_30d']:.1f}%" if row['revision_30d'] else "N/A"
+            print(f"  {row['ticker']:6} | 7d: {r7:>8} | 30d: {r30:>8} | Score: {row['revision_score']:.0f}")
+        print()
+
+    # Get highly rated
+    rated = scraper.get_highly_rated(analyst_data, min_rating_score=70.0, min_analysts=args.min_analysts)
+    if not rated.empty:
+        print(f"Highly Rated (score >= 70, {args.min_analysts}+ analysts):")
+        print("-" * 70)
+        for _, row in rated.head(10).iterrows():
+            upside = f"{row['upside_pct']:.1f}%" if row['upside_pct'] else "N/A"
+            print(f"  {row['ticker']:6} | Rating: {row['rating_score']:.0f} | "
+                  f"Buy: {row['strong_buy']+row['buy']} | Hold: {row['hold']} | "
+                  f"Upside: {upside:>8}")
+        print()
+
+    # Overall statistics
+    df = scraper.to_dataframe(analyst_data)
+    avg_rating = df["rating_score"].mean()
+    avg_upside = df["upside_to_target"].dropna().mean()
+
+    print("Statistics:")
+    print(f"  Average Rating Score: {avg_rating:.1f}")
+    print(f"  Average Upside to Target: {avg_upside:.1f}%" if not pd.isna(avg_upside) else "  Average Upside: N/A")
+
+    # Save output
+    if args.analyst_output:
+        output_path = Path(args.analyst_output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if output_path.suffix == ".csv":
+            df.to_csv(output_path, index=False)
+        else:
+            with open(output_path, "w") as f:
+                json.dump([d.to_dict() for d in analyst_data.values()], f, indent=2)
+
+        print(f"\nData saved to: {output_path}")
+
+
+def _run_regime_status_command(args: argparse.Namespace) -> None:
+    """Run regime status command."""
+    import yfinance as yf
+    from .regime_ensemble import RegimeAwareEnsemble
+
+    print("\nFetching market data...")
+
+    # Fetch SPY and VIX data
+    spy = yf.download("SPY", period="1y", progress=False)
+    vix = yf.download("^VIX", period="1y", progress=False)
+
+    if spy.empty:
+        raise SystemExit("Error: Could not fetch SPY data")
+
+    spy_prices = spy["Adj Close"]
+    vix_prices = vix["Adj Close"] if not vix.empty else None
+
+    # Detect regime
+    ensemble = RegimeAwareEnsemble()
+    regime = ensemble.detect_regime(spy_prices, vix_prices)
+
+    # Get summary
+    summary = ensemble.get_regime_summary()
+
+    # Print results
+    print("\nMarket Regime Status")
+    print("=" * 60)
+    print(f"Trend Regime:      {regime.trend_regime.upper()}")
+    print(f"Volatility Regime: {regime.volatility_regime.upper()}")
+    print()
+
+    print("Probabilities:")
+    print(f"  Bull:     {regime.bull_probability:.1%}")
+    print(f"  Bear:     {regime.bear_probability:.1%}")
+    print(f"  High Vol: {regime.high_vol_probability:.1%}")
+    print()
+
+    print("Market Metrics:")
+    print(f"  SPY 20-day return: {regime.spy_return_20d:+.1f}%")
+    print(f"  SPY 50-day return: {regime.spy_return_50d:+.1f}%")
+    print(f"  VIX Level: {regime.vix_level:.1f}")
+    print(f"  VIX Percentile: {regime.vix_percentile:.0f}%")
+    print()
+
+    weights = ensemble.get_regime_weights()
+    print("Recommended Settings:")
+    print(f"  Position Size Mult: {weights.position_size_mult:.2f}")
+    print()
+
+    print("Factor Weights:")
+    print(f"  Momentum: {weights.momentum_weight:.2f}")
+    print(f"  Value:    {weights.value_weight:.2f}")
+    print(f"  Quality:  {weights.quality_weight:.2f}")
+    print(f"  Growth:   {weights.growth_weight:.2f}")
+    print()
+
+    print("Horizon Weights:")
+    for horizon, weight in weights.horizon_weights.items():
+        print(f"  {horizon:>3}d: {weight:.2f}")
+
+    if weights.sector_tilts:
+        print()
+        print("Sector Tilts:")
+        for sector, tilt in sorted(weights.sector_tilts.items(), key=lambda x: -x[1]):
+            direction = "+" if tilt >= 0 else ""
+            print(f"  {sector:25} {direction}{tilt:.2f}")
+
+
 def _run_custom_factors_command(args: argparse.Namespace) -> None:
     """Run custom factors command."""
     from .custom_factors import CustomFactorBuilder, get_factor_templates
@@ -1100,6 +1274,14 @@ def main(argv: List[str] | None = None) -> None:
 
     if args.command == "short-interest":
         _run_short_interest_command(args)
+        return
+
+    if args.command == "analyst-estimates":
+        _run_analyst_estimates_command(args)
+        return
+
+    if args.command == "regime-status":
+        _run_regime_status_command(args)
         return
 
     # run
