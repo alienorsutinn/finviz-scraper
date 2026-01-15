@@ -1,12 +1,26 @@
 from __future__ import annotations
 
 import argparse
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+import numpy as np
 import pandas as pd
 import streamlit as st
+
+# Import custom factors module
+try:
+    from finviz_weekly.custom_factors import (
+        CustomFactorBuilder,
+        ExpressionParser,
+        FactorDefinition,
+        get_factor_templates,
+    )
+    CUSTOM_FACTORS_AVAILABLE = True
+except ImportError:
+    CUSTOM_FACTORS_AVAILABLE = False
 
 
 # ----------------------------
@@ -205,7 +219,7 @@ def main() -> None:
     with col4:
         st.metric("Top lists", f"{len(_discover_top_lists(data_dir)):,}")
 
-    tabs = st.tabs(["Overview", "Screens", "Conviction", "Ticker Card"])
+    tabs = st.tabs(["Overview", "Screens", "Conviction", "Ticker Card", "Factor Builder"])
 
     # ----------------------------
     # Overview
@@ -392,6 +406,223 @@ def main() -> None:
                         st.markdown("**Appears in**")
                         st.write(f"Count: **{membership.get('count', '—')}**")
                         st.code(str(membership.get("lists", "")))
+
+    # ----------------------------
+    # Factor Builder
+    # ----------------------------
+    with tabs[4]:
+        if not CUSTOM_FACTORS_AVAILABLE:
+            st.warning("Custom factors module not available. Install with: `pip install -e .`")
+        else:
+            st.subheader("Custom Factor Builder")
+            st.markdown("""
+            Create custom factors using mathematical expressions. Use `{column_name}` to reference data columns.
+
+            **Available functions:** `rank()`, `zscore()`, `log()`, `sqrt()`, `abs()`, `min()`, `max()`
+
+            **Example expressions:**
+            - `{pe} / {eps_growth_next_y}` - PEG ratio
+            - `rank({score_quality}) + rank({score_value})` - Combined rank
+            - `zscore({pe}) * -1` - Inverted PE z-score
+            """)
+
+            # Initialize builder
+            factors_path = data_dir / "custom_factors.json"
+            builder = CustomFactorBuilder(factors_path=factors_path)
+            parser = ExpressionParser()
+
+            # Get available columns from scored data
+            available_columns = list(scored.columns)
+            numeric_columns = scored.select_dtypes(include=[np.number]).columns.tolist()
+
+            # Layout
+            col_left, col_right = st.columns([1, 1])
+
+            with col_left:
+                st.markdown("### Create New Factor")
+
+                # Templates dropdown
+                templates = get_factor_templates()
+                template_names = ["-- Select a template --"] + list(templates.keys())
+                selected_template = st.selectbox("Start from template", template_names)
+
+                # Pre-fill from template
+                if selected_template != "-- Select a template --":
+                    template = templates[selected_template]
+                    default_name = selected_template
+                    default_expr = template["expression"]
+                    default_desc = template["description"]
+                    default_higher = template["higher_is_better"]
+                    default_cat = template["category"]
+                else:
+                    default_name = ""
+                    default_expr = ""
+                    default_desc = ""
+                    default_higher = True
+                    default_cat = "custom"
+
+                # Factor inputs
+                factor_name = st.text_input("Factor name", value=default_name, placeholder="my_factor")
+                factor_expr = st.text_area(
+                    "Expression",
+                    value=default_expr,
+                    placeholder="{pe} / {eps_growth_next_y}",
+                    height=100,
+                )
+                factor_desc = st.text_input("Description", value=default_desc, placeholder="What does this factor measure?")
+
+                col_opts1, col_opts2 = st.columns(2)
+                with col_opts1:
+                    higher_is_better = st.checkbox("Higher is better", value=default_higher)
+                with col_opts2:
+                    category = st.selectbox(
+                        "Category",
+                        ["custom", "value", "quality", "growth", "momentum", "risk", "composite"],
+                        index=["custom", "value", "quality", "growth", "momentum", "risk", "composite"].index(default_cat) if default_cat in ["custom", "value", "quality", "growth", "momentum", "risk", "composite"] else 0,
+                    )
+
+                # Validate expression
+                if factor_expr:
+                    is_valid, error = parser.validate_expression(factor_expr, available_columns)
+                    if is_valid:
+                        st.success("Expression is valid")
+                    else:
+                        st.error(f"Invalid expression: {error}")
+
+                # Preview button
+                if st.button("Preview Factor", disabled=not factor_expr):
+                    if factor_expr:
+                        try:
+                            preview_values = parser.parse(factor_expr, scored)
+                            st.markdown("**Preview (first 20 rows):**")
+
+                            preview_df = pd.DataFrame({
+                                "ticker": scored["ticker"].head(20),
+                                "factor_value": preview_values.head(20),
+                            })
+                            st.dataframe(preview_df, use_container_width=True)
+
+                            # Statistics
+                            st.markdown("**Statistics:**")
+                            stats_col1, stats_col2, stats_col3, stats_col4 = st.columns(4)
+                            with stats_col1:
+                                st.metric("Mean", f"{preview_values.mean():.4f}")
+                            with stats_col2:
+                                st.metric("Std", f"{preview_values.std():.4f}")
+                            with stats_col3:
+                                st.metric("Min", f"{preview_values.min():.4f}")
+                            with stats_col4:
+                                st.metric("Max", f"{preview_values.max():.4f}")
+
+                            # Distribution
+                            st.markdown("**Distribution:**")
+                            chart_data = preview_values.dropna()
+                            if len(chart_data) > 0:
+                                st.bar_chart(pd.cut(chart_data, bins=20).value_counts().sort_index())
+
+                        except Exception as e:
+                            st.error(f"Error computing factor: {e}")
+
+                # Save button
+                if st.button("Save Factor", type="primary", disabled=not (factor_name and factor_expr)):
+                    if factor_name and factor_expr:
+                        try:
+                            if factor_name in builder.factors:
+                                builder.update_factor(
+                                    name=factor_name,
+                                    expression=factor_expr,
+                                    description=factor_desc,
+                                    higher_is_better=higher_is_better,
+                                    category=category,
+                                )
+                                st.success(f"Updated factor: {factor_name}")
+                            else:
+                                builder.create_factor(
+                                    name=factor_name,
+                                    expression=factor_expr,
+                                    description=factor_desc,
+                                    higher_is_better=higher_is_better,
+                                    category=category,
+                                )
+                                st.success(f"Created factor: {factor_name}")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error saving factor: {e}")
+
+            with col_right:
+                st.markdown("### Saved Factors")
+
+                if not builder.factors:
+                    st.info("No custom factors saved yet. Create one using the form on the left.")
+                else:
+                    for name, factor in builder.factors.items():
+                        with st.expander(f"**{name}** ({factor.category})", expanded=False):
+                            st.markdown(f"**Expression:** `{factor.expression}`")
+                            st.markdown(f"**Description:** {factor.description}")
+                            st.markdown(f"**Higher is better:** {factor.higher_is_better}")
+                            st.markdown(f"**Created:** {factor.created_at[:10] if factor.created_at else 'Unknown'}")
+
+                            # Test on current data
+                            if st.button(f"Test {name}", key=f"test_{name}"):
+                                result = builder.test_factor(name, scored)
+                                if result.success:
+                                    st.success(f"Test passed: {result.sample_size} samples, {result.null_pct:.1f}% null")
+                                    st.json({
+                                        "mean": round(result.mean_value, 4) if result.mean_value else None,
+                                        "std": round(result.std_value, 4) if result.std_value else None,
+                                        "min": round(result.min_value, 4) if result.min_value else None,
+                                        "max": round(result.max_value, 4) if result.max_value else None,
+                                    })
+                                else:
+                                    st.error(f"Test failed: {result.error_message}")
+
+                            # Delete button
+                            if st.button(f"Delete {name}", key=f"delete_{name}", type="secondary"):
+                                builder.delete_factor(name)
+                                st.success(f"Deleted factor: {name}")
+                                st.rerun()
+
+                st.markdown("---")
+                st.markdown("### Available Columns")
+                st.markdown("Use these in your expressions with `{column_name}` syntax:")
+
+                # Show numeric columns in a nice format
+                col_list = st.expander("View all columns", expanded=False)
+                with col_list:
+                    for col in sorted(numeric_columns):
+                        sample_val = scored[col].dropna().head(1).values
+                        sample_str = f"{sample_val[0]:.2f}" if len(sample_val) > 0 else "N/A"
+                        st.text(f"{col}: {sample_str}")
+
+                # Export/Import
+                st.markdown("---")
+                st.markdown("### Export/Import")
+
+                if builder.factors:
+                    export_data = json.dumps(
+                        {name: factor.to_dict() for name, factor in builder.factors.items()},
+                        indent=2,
+                    )
+                    st.download_button(
+                        "Export Factors (JSON)",
+                        data=export_data,
+                        file_name="custom_factors_export.json",
+                        mime="application/json",
+                    )
+
+                uploaded_file = st.file_uploader("Import Factors (JSON)", type=["json"])
+                if uploaded_file is not None:
+                    try:
+                        import_data = json.loads(uploaded_file.read().decode("utf-8"))
+                        for name, factor_dict in import_data.items():
+                            if name not in builder.factors:
+                                factor = FactorDefinition.from_dict(factor_dict)
+                                builder.factors[name] = factor
+                        builder._save_factors()
+                        st.success(f"Imported {len(import_data)} factors")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Import error: {e}")
 
 
 if __name__ == "__main__":

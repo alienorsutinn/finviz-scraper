@@ -34,6 +34,7 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
             "insider", "earnings", "financials",
             "model-registry", "drift-check", "retrain",
             "correlation", "custom-factors",
+            "options-flow", "short-interest",
         ],
         help="Command to execute (default: run).",
     )
@@ -262,6 +263,48 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
         action=argparse.BooleanOptionalAction,
         default=True,
         help="Whether higher factor values are better (default: True).",
+    )
+
+    # Options flow args (options-flow command)
+    parser.add_argument(
+        "--volume-multiplier",
+        type=float,
+        default=2.0,
+        help="Volume multiplier for unusual activity detection (default: 2.0).",
+    )
+    parser.add_argument(
+        "--min-dte",
+        type=int,
+        default=7,
+        help="Minimum days to expiration for options (default: 7).",
+    )
+    parser.add_argument(
+        "--max-dte",
+        type=int,
+        default=90,
+        help="Maximum days to expiration for options (default: 90).",
+    )
+    parser.add_argument(
+        "--options-output",
+        help="Path to save options flow data (JSON or CSV).",
+    )
+
+    # Short interest args (short-interest command)
+    parser.add_argument(
+        "--high-short-pct",
+        type=float,
+        default=15.0,
+        help="Threshold for high short interest percentage (default: 15.0).",
+    )
+    parser.add_argument(
+        "--squeeze-score-min",
+        type=float,
+        default=50.0,
+        help="Minimum squeeze score to flag as candidate (default: 50.0).",
+    )
+    parser.add_argument(
+        "--short-output",
+        help="Path to save short interest data (JSON or CSV).",
     )
 
     return parser.parse_args(argv)
@@ -688,6 +731,180 @@ def _run_correlation_command(args: argparse.Namespace) -> None:
         print(f"Heatmap saved to: {args.plot_output}")
 
 
+def _run_options_flow_command(args: argparse.Namespace) -> None:
+    """Run options flow scraper command."""
+    from .scrapers.options_flow import OptionsFlowConfig, OptionsFlowScraper
+
+    tickers = []
+    if args.ticker:
+        tickers = [args.ticker.upper()]
+    elif args.tickers:
+        tickers = [t.strip().upper() for t in args.tickers.split(",") if t.strip()]
+    elif args.tickers_file:
+        path = Path(args.tickers_file)
+        if path.exists():
+            tickers = [t.strip().upper() for t in path.read_text().splitlines() if t.strip()]
+
+    if not tickers:
+        raise SystemExit("Error: Must provide --ticker, --tickers, or --tickers-file")
+
+    LOGGER.info("Fetching options flow for %d tickers", len(tickers))
+
+    # Configure scraper
+    config = OptionsFlowConfig(
+        volume_multiplier=args.volume_multiplier,
+        min_dte=args.min_dte,
+        max_dte=args.max_dte,
+    )
+
+    scraper = OptionsFlowScraper(config)
+
+    # Progress callback
+    def progress(current, total, ticker):
+        print(f"  [{current}/{total}] {ticker}", end="\r")
+
+    # Fetch data
+    options_data = scraper.fetch_batch(tickers, progress_callback=progress)
+    print()  # Clear progress line
+
+    if not options_data:
+        LOGGER.warning("No options data found")
+        return
+
+    # Print summary
+    print("\nOptions Flow Summary")
+    print("=" * 70)
+    print(f"Tickers fetched: {len(options_data)}/{len(tickers)}")
+    print()
+
+    # Get unusual activity
+    unusual = scraper.get_unusual_activity(options_data, min_volume_spike=args.volume_multiplier)
+    if not unusual.empty:
+        print(f"Unusual Activity ({len(unusual)} tickers):")
+        print("-" * 70)
+        for _, row in unusual.head(10).iterrows():
+            signal = row['signal']
+            signal_color = "BULL" if signal == "BULLISH" else ("BEAR" if signal == "BEARISH" else "NEUT")
+            print(f"  {row['ticker']:6} | Volume Spike: {row['volume_spike']:.1f}x | "
+                  f"P/C Ratio: {row['put_call_ratio']:.2f} | Sentiment: {row['sentiment_score']:.0f} | {signal_color}")
+        print()
+
+    # Sentiment distribution
+    df = scraper.to_dataframe(options_data)
+    bullish = (df["sentiment_score"] > 60).sum()
+    bearish = (df["sentiment_score"] < 40).sum()
+    neutral = len(df) - bullish - bearish
+
+    print("Sentiment Distribution:")
+    print(f"  Bullish (>60): {bullish} ({bullish/len(df)*100:.1f}%)")
+    print(f"  Neutral (40-60): {neutral} ({neutral/len(df)*100:.1f}%)")
+    print(f"  Bearish (<40): {bearish} ({bearish/len(df)*100:.1f}%)")
+
+    # Save output
+    if args.options_output:
+        output_path = Path(args.options_output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if output_path.suffix == ".csv":
+            df.to_csv(output_path, index=False)
+        else:
+            with open(output_path, "w") as f:
+                json.dump([d.to_dict() for d in options_data.values()], f, indent=2)
+
+        print(f"\nData saved to: {output_path}")
+
+
+def _run_short_interest_command(args: argparse.Namespace) -> None:
+    """Run short interest tracker command."""
+    from .scrapers.short_interest import ShortInterestConfig, ShortInterestTracker
+
+    tickers = []
+    if args.ticker:
+        tickers = [args.ticker.upper()]
+    elif args.tickers:
+        tickers = [t.strip().upper() for t in args.tickers.split(",") if t.strip()]
+    elif args.tickers_file:
+        path = Path(args.tickers_file)
+        if path.exists():
+            tickers = [t.strip().upper() for t in path.read_text().splitlines() if t.strip()]
+
+    if not tickers:
+        raise SystemExit("Error: Must provide --ticker, --tickers, or --tickers-file")
+
+    LOGGER.info("Fetching short interest for %d tickers", len(tickers))
+
+    # Configure tracker
+    config = ShortInterestConfig(
+        high_short_interest_pct=args.high_short_pct,
+    )
+
+    tracker = ShortInterestTracker(config)
+
+    # Progress callback
+    def progress(current, total, ticker):
+        print(f"  [{current}/{total}] {ticker}", end="\r")
+
+    # Fetch data
+    short_data = tracker.fetch_batch(tickers, progress_callback=progress)
+    print()  # Clear progress line
+
+    if not short_data:
+        LOGGER.warning("No short interest data found")
+        return
+
+    # Print summary
+    print("\nShort Interest Summary")
+    print("=" * 70)
+    print(f"Tickers fetched: {len(short_data)}/{len(tickers)}")
+    print()
+
+    # Get high short interest
+    high_short = tracker.get_high_short_interest(short_data, min_short_pct=args.high_short_pct)
+    if not high_short.empty:
+        print(f"High Short Interest (>{args.high_short_pct}% of float):")
+        print("-" * 70)
+        for _, row in high_short.head(10).iterrows():
+            print(f"  {row['ticker']:6} | SI/Float: {row['short_percent_float']:.1f}% | "
+                  f"Days to Cover: {row['days_to_cover']:.1f} | Trend: {row['trend']:10} | "
+                  f"Score: {row['contrarian_score']:.0f}")
+        print()
+
+    # Get squeeze candidates
+    squeeze = tracker.get_squeeze_candidates(short_data, min_squeeze_score=args.squeeze_score_min)
+    if not squeeze.empty:
+        print(f"Squeeze Candidates (score >= {args.squeeze_score_min}):")
+        print("-" * 70)
+        for _, row in squeeze.head(10).iterrows():
+            print(f"  {row['ticker']:6} | SI/Float: {row['short_percent_float']:.1f}% | "
+                  f"Days to Cover: {row['days_to_cover']:.1f} | "
+                  f"Squeeze Score: {row['squeeze_score']:.0f}")
+        print()
+
+    # Overall statistics
+    df = tracker.to_dataframe(short_data)
+    avg_short = df["short_percent_float"].mean()
+    max_short = df["short_percent_float"].max()
+    squeeze_count = (df["squeeze_score"] >= args.squeeze_score_min).sum()
+
+    print("Statistics:")
+    print(f"  Average SI/Float: {avg_short:.1f}%")
+    print(f"  Max SI/Float: {max_short:.1f}%")
+    print(f"  Squeeze Candidates: {squeeze_count}")
+
+    # Save output
+    if args.short_output:
+        output_path = Path(args.short_output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if output_path.suffix == ".csv":
+            df.to_csv(output_path, index=False)
+        else:
+            with open(output_path, "w") as f:
+                json.dump([d.to_dict() for d in short_data.values()], f, indent=2)
+
+        print(f"\nData saved to: {output_path}")
+
+
 def _run_custom_factors_command(args: argparse.Namespace) -> None:
     """Run custom factors command."""
     from .custom_factors import CustomFactorBuilder, get_factor_templates
@@ -875,6 +1092,14 @@ def main(argv: List[str] | None = None) -> None:
 
     if args.command == "custom-factors":
         _run_custom_factors_command(args)
+        return
+
+    if args.command == "options-flow":
+        _run_options_flow_command(args)
+        return
+
+    if args.command == "short-interest":
+        _run_short_interest_command(args)
         return
 
     # run
