@@ -39,6 +39,8 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
             "options-flow", "short-interest",
             "analyst-estimates", "regime-status",
             "institutional", "macro", "sentiment", "stacking",
+            "factor-analytics", "risk-check", "paper-trade",
+            "reddit", "etf-flows", "sec-filings", "dashboard",
         ],
         help="Command to execute (default: run).",
     )
@@ -370,6 +372,72 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
         "--ensemble-path",
         default="models/ensemble",
         help="Path to save/load stacking ensemble (default: models/ensemble).",
+    )
+
+    # Factor analytics args (factor-analytics command)
+    parser.add_argument(
+        "--analytics-action",
+        choices=["pca", "correlation", "decay", "all"],
+        default="all",
+        help="Factor analytics action (default: all).",
+    )
+    parser.add_argument(
+        "--variance-threshold",
+        type=float,
+        default=0.90,
+        help="PCA variance threshold (default: 0.90).",
+    )
+
+    # Paper trading args (paper-trade command)
+    parser.add_argument(
+        "--initial-cash",
+        type=float,
+        default=100000.0,
+        help="Initial paper trading cash (default: $100,000).",
+    )
+    parser.add_argument(
+        "--trade-action",
+        choices=["status", "buy", "sell", "history", "reset"],
+        default="status",
+        help="Paper trading action (default: status).",
+    )
+    parser.add_argument(
+        "--shares",
+        type=int,
+        help="Number of shares for trade.",
+    )
+
+    # Reddit sentiment args (reddit command)
+    parser.add_argument(
+        "--subreddits",
+        default="wallstreetbets,stocks,investing",
+        help="Comma-separated subreddits to scrape (default: wsb,stocks,investing).",
+    )
+    parser.add_argument(
+        "--reddit-output",
+        help="Path to save Reddit sentiment data.",
+    )
+
+    # ETF flows args (etf-flows command)
+    parser.add_argument(
+        "--flow-period",
+        choices=["1d", "5d", "21d"],
+        default="21d",
+        help="ETF flow analysis period (default: 21d).",
+    )
+
+    # SEC filings args (sec-filings command)
+    parser.add_argument(
+        "--filing-type",
+        choices=["8-K", "10-Q", "10-K", "4", "all"],
+        default="all",
+        help="SEC filing type to fetch (default: all).",
+    )
+    parser.add_argument(
+        "--filing-days",
+        type=int,
+        default=30,
+        help="Days of filings to fetch (default: 30).",
     )
 
     return parser.parse_args(argv)
@@ -1339,6 +1407,281 @@ def _run_stacking_command(args: argparse.Namespace) -> None:
         raise SystemExit("Error: predict action requires input data. Use programmatic API.")
 
 
+def _run_factor_analytics_command(args: argparse.Namespace) -> None:
+    """Run factor analytics command."""
+    from .factor_analytics import PCAAnalyzer, RollingCorrelationTracker, run_factor_analytics
+
+    data_dir = Path(args.out)
+    latest_path = data_dir / "latest" / "finviz_fundamentals.parquet"
+
+    if not latest_path.exists():
+        raise SystemExit(f"Error: Data not found: {latest_path}")
+
+    print("Loading data...")
+    data = pd.read_parquet(latest_path)
+
+    # Define factor columns
+    factor_cols = [col for col in data.columns if any(
+        x in col.lower() for x in ['score', 'quality', 'value', 'momentum', 'growth', 'risk']
+    )]
+
+    if not factor_cols:
+        raise SystemExit("Error: No factor columns found in data")
+
+    print(f"Found {len(factor_cols)} factor columns")
+
+    action = args.analytics_action
+
+    if action in ["pca", "all"]:
+        print("\n" + "=" * 60)
+        print("PCA ANALYSIS")
+        print("=" * 60)
+
+        analyzer = PCAAnalyzer(variance_threshold=args.variance_threshold)
+        try:
+            result = analyzer.fit_transform(data, factor_cols)
+
+            print(f"\nExplained Variance:")
+            for i, (var, cum) in enumerate(zip(result.explained_variance_ratio, result.cumulative_variance)):
+                print(f"  PC{i+1}: {var:.1%} (cumulative: {cum:.1%})")
+
+            print(f"\nRecommended components: {result.recommended_components}")
+
+            print(f"\nTop Feature Importance:")
+            sorted_imp = sorted(result.feature_importance.items(), key=lambda x: -x[1])
+            for feat, imp in sorted_imp[:10]:
+                print(f"  {feat}: {imp:.3f}")
+
+            redundant = analyzer.get_redundant_factors(result)
+            if redundant:
+                print(f"\nRedundant factors (low importance): {', '.join(redundant)}")
+
+        except Exception as e:
+            print(f"PCA failed: {e}")
+
+    if action in ["correlation", "all"]:
+        print("\n" + "=" * 60)
+        print("CORRELATION ANALYSIS")
+        print("=" * 60)
+
+        tracker = RollingCorrelationTracker()
+        try:
+            result = tracker.calculate_rolling_correlations(data, factor_cols[:10])
+
+            print(f"\nFactor Clusters:")
+            for factor, cluster in result.cluster_assignments.items():
+                print(f"  Cluster {cluster}: {factor}")
+
+            if result.unstable_pairs:
+                print(f"\nUnstable Pairs (high correlation volatility):")
+                for f1, f2 in result.unstable_pairs[:5]:
+                    print(f"  {f1} <-> {f2}")
+
+        except Exception as e:
+            print(f"Correlation analysis failed: {e}")
+
+    print("\nAnalysis complete.")
+
+
+def _run_risk_check_command(args: argparse.Namespace) -> None:
+    """Run risk check command."""
+    from .risk_engine import RiskEngine, PositionLimits
+
+    print("\nRisk Engine Configuration")
+    print("=" * 60)
+
+    limits = PositionLimits()
+    print(f"Max Position Size: {limits.max_position_pct:.0%}")
+    print(f"Max Sector Exposure: {limits.max_sector_pct:.0%}")
+    print(f"Max Correlated Exposure: {limits.max_correlated_pct:.0%}")
+    print(f"Correlation Threshold: {limits.correlation_threshold}")
+    print(f"Max Positions: {limits.max_positions}")
+    print(f"Min Positions: {limits.min_positions}")
+
+
+def _run_paper_trade_command(args: argparse.Namespace) -> None:
+    """Run paper trading command."""
+    from .broker_integration import PaperTradingBroker, Order, OrderSide, OrderType, TradeJournal
+
+    action = args.trade_action
+    broker = PaperTradingBroker(initial_cash=args.initial_cash)
+    broker.connect()
+
+    journal_path = Path(args.out) / "trade_journal.json"
+    journal = TradeJournal(str(journal_path))
+
+    if action == "status":
+        account = broker.get_account_info()
+        positions = broker.get_positions()
+
+        print("\nPaper Trading Account Status")
+        print("=" * 60)
+        print(f"Account: {account.account_id}")
+        print(f"Portfolio Value: ${account.portfolio_value:,.2f}")
+        print(f"Cash: ${account.cash:,.2f}")
+        print(f"Positions: {account.positions_count}")
+
+        if positions:
+            print("\nPositions:")
+            for pos in positions:
+                print(f"  {pos.ticker}: {pos.quantity} shares @ ${pos.current_price:.2f}")
+                print(f"    P&L: ${pos.unrealized_pnl:+,.2f} ({pos.unrealized_pnl_pct:+.1f}%)")
+
+    elif action == "buy":
+        if not args.ticker:
+            raise SystemExit("Error: --ticker required for buy")
+        if not args.shares:
+            raise SystemExit("Error: --shares required for buy")
+
+        order = Order(
+            id="",
+            ticker=args.ticker.upper(),
+            side=OrderSide.BUY,
+            order_type=OrderType.MARKET,
+            quantity=args.shares,
+        )
+        result = broker.submit_order(order)
+        print(f"Order {result.status.value}: {result.side.value} {result.quantity} {result.ticker}")
+        if result.filled_avg_price:
+            print(f"Filled at ${result.filled_avg_price:.2f}")
+
+    elif action == "sell":
+        if not args.ticker:
+            raise SystemExit("Error: --ticker required for sell")
+        if not args.shares:
+            raise SystemExit("Error: --shares required for sell")
+
+        order = Order(
+            id="",
+            ticker=args.ticker.upper(),
+            side=OrderSide.SELL,
+            order_type=OrderType.MARKET,
+            quantity=args.shares,
+        )
+        result = broker.submit_order(order)
+        print(f"Order {result.status.value}: {result.side.value} {result.quantity} {result.ticker}")
+
+    elif action == "history":
+        summary = journal.get_performance_summary()
+        print("\nTrading Performance Summary")
+        print("=" * 60)
+        print(f"Total Trades: {summary['total_trades']}")
+        print(f"Closed Trades: {summary['closed_trades']}")
+        print(f"Win Rate: {summary.get('win_rate', 0):.1f}%")
+        print(f"Total P&L: ${summary.get('total_pnl', 0):,.2f}")
+
+
+def _run_reddit_command(args: argparse.Namespace) -> None:
+    """Run Reddit sentiment command."""
+    from .social_sentiment import RedditScraper, SocialSentimentConfig
+
+    subreddits = [s.strip() for s in args.subreddits.split(",")]
+    config = SocialSentimentConfig(subreddits=subreddits)
+    scraper = RedditScraper(config)
+
+    print(f"\nFetching Reddit sentiment from: {', '.join(subreddits)}")
+    print("=" * 60)
+
+    df = scraper.get_trending_tickers(limit=20)
+
+    if df.empty:
+        print("No trending tickers found")
+        return
+
+    print(f"\nTop Trending Tickers:")
+    print("-" * 60)
+    for _, row in df.head(15).iterrows():
+        sentiment_label = "BULLISH" if row['bullish'] else ("BEARISH" if row['bearish'] else "NEUTRAL")
+        print(f"  {row['ticker']:6} | Mentions: {row['mentions']:3} | "
+              f"Sentiment: {row['sentiment']:+.2f} ({sentiment_label}) | "
+              f"Score: {row['total_score']:,}")
+
+    if args.reddit_output:
+        output_path = Path(args.reddit_output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        if output_path.suffix == ".csv":
+            df.to_csv(output_path, index=False)
+        else:
+            df.to_json(output_path, orient="records", indent=2)
+        print(f"\nData saved to: {output_path}")
+
+
+def _run_etf_flows_command(args: argparse.Namespace) -> None:
+    """Run ETF flows command."""
+    from .etf_flows import ETFFlowTracker, get_etf_flow_summary
+
+    print("\nFetching ETF flow data...")
+    print("=" * 60)
+
+    summary = get_etf_flow_summary()
+
+    print(f"\nSector Rotation Signal")
+    print("-" * 40)
+    rotation = summary['rotation_signal']
+    print(f"Type: {rotation['type'].upper()}")
+    print(f"Strength: {rotation['strength']:.0f}/100")
+    print(f"Money flowing INTO: {', '.join(rotation['flowing_into'])}")
+    print(f"Money flowing OUT: {', '.join(rotation['flowing_out'])}")
+
+    print(f"\nSector Rankings ({args.flow_period}):")
+    print("-" * 60)
+    for i, sector in enumerate(summary['sector_ranking'][:10], 1):
+        print(f"  {i:2}. {sector['sector']:25} | "
+              f"Price: {sector['price_change']:+.1f}% | "
+              f"Momentum: {sector['momentum_score']:.0f}")
+
+    print(f"\nFactor Scores:")
+    for factor, score in summary['factor_scores'].items():
+        print(f"  {factor}: {score:+.1f}%")
+
+    print(f"\nRecommended Sector Tilts:")
+    for sector, tilt in sorted(summary['recommended_tilts'].items(), key=lambda x: -x[1]):
+        direction = "+" if tilt >= 0 else ""
+        print(f"  {sector:25} {direction}{tilt:.2f}")
+
+
+def _run_sec_filings_command(args: argparse.Namespace) -> None:
+    """Run SEC filings command."""
+    from .sec_filings import SECFilingsTracker, get_sec_filings_summary
+
+    tickers = []
+    if args.ticker:
+        tickers = [args.ticker.upper()]
+    elif args.tickers:
+        tickers = [t.strip().upper() for t in args.tickers.split(",") if t.strip()]
+
+    if not tickers:
+        raise SystemExit("Error: Must provide --ticker or --tickers")
+
+    print(f"\nFetching SEC filings for {len(tickers)} tickers...")
+    print("=" * 60)
+
+    tracker = SECFilingsTracker()
+
+    for ticker in tickers:
+        print(f"\n{ticker}:")
+        print("-" * 40)
+
+        filings = tracker.get_recent_filings(ticker, days=args.filing_days)
+
+        if not filings:
+            print("  No recent filings found")
+            continue
+
+        for filing in filings[:5]:
+            print(f"  [{filing.filed_date}] {filing.filing_type}: {filing.description}")
+
+
+def _run_dashboard_command(args: argparse.Namespace) -> None:
+    """Run dashboard command."""
+    print("\nStarting Finviz Scraper Dashboard...")
+    print("=" * 60)
+    print("\nTo run the dashboard, use:")
+    print("  streamlit run -m finviz_weekly.dashboard")
+    print("\nOr run directly:")
+    print("  python -m streamlit run src/finviz_weekly/dashboard.py")
+
+
 def _run_regime_status_command(args: argparse.Namespace) -> None:
     """Run regime status command."""
     import yfinance as yf
@@ -1626,6 +1969,34 @@ def main(argv: List[str] | None = None) -> None:
 
     if args.command == "stacking":
         _run_stacking_command(args)
+        return
+
+    if args.command == "factor-analytics":
+        _run_factor_analytics_command(args)
+        return
+
+    if args.command == "risk-check":
+        _run_risk_check_command(args)
+        return
+
+    if args.command == "paper-trade":
+        _run_paper_trade_command(args)
+        return
+
+    if args.command == "reddit":
+        _run_reddit_command(args)
+        return
+
+    if args.command == "etf-flows":
+        _run_etf_flows_command(args)
+        return
+
+    if args.command == "sec-filings":
+        _run_sec_filings_command(args)
+        return
+
+    if args.command == "dashboard":
+        _run_dashboard_command(args)
         return
 
     # run
