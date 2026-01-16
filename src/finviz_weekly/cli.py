@@ -41,6 +41,9 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
             "institutional", "macro", "sentiment", "stacking",
             "factor-analytics", "risk-check", "paper-trade",
             "reddit", "etf-flows", "sec-filings", "dashboard",
+            # Phase 14 commands
+            "backtest", "monte-carlo", "optimize", "rebalance",
+            "api", "research", "scheduler",
         ],
         help="Command to execute (default: run).",
     )
@@ -438,6 +441,85 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
         type=int,
         default=30,
         help="Days of filings to fetch (default: 30).",
+    )
+
+    # Phase 14: Backtesting args (backtest command)
+    parser.add_argument(
+        "--backtest-mode",
+        choices=["walkforward", "simple", "monte-carlo"],
+        default="walkforward",
+        help="Backtesting mode (default: walkforward).",
+    )
+    parser.add_argument(
+        "--train-window",
+        type=int,
+        default=252,
+        help="Training window in days (default: 252).",
+    )
+    parser.add_argument(
+        "--test-window",
+        type=int,
+        default=21,
+        help="Test window in days (default: 21).",
+    )
+
+    # Monte Carlo args (monte-carlo command)
+    parser.add_argument(
+        "--n-simulations",
+        type=int,
+        default=10000,
+        help="Number of Monte Carlo simulations (default: 10000).",
+    )
+    parser.add_argument(
+        "--simulation-periods",
+        type=int,
+        default=252,
+        help="Simulation horizon in days (default: 252).",
+    )
+
+    # Optimization args (optimize command)
+    parser.add_argument(
+        "--opt-method",
+        choices=["mean_variance", "hrp", "risk_parity", "black_litterman"],
+        default="mean_variance",
+        help="Portfolio optimization method (default: mean_variance).",
+    )
+    parser.add_argument(
+        "--opt-objective",
+        choices=["max_sharpe", "min_variance", "risk_parity", "max_return"],
+        default="max_sharpe",
+        help="Optimization objective (default: max_sharpe).",
+    )
+    parser.add_argument(
+        "--lookback-days",
+        type=int,
+        default=252,
+        help="Lookback period for optimization (default: 252).",
+    )
+
+    # API args (api command)
+    parser.add_argument(
+        "--api-host",
+        default="0.0.0.0",
+        help="API server host (default: 0.0.0.0).",
+    )
+    parser.add_argument(
+        "--api-port",
+        type=int,
+        default=8000,
+        help="API server port (default: 8000).",
+    )
+
+    # Research args (research command)
+    parser.add_argument(
+        "--research-action",
+        choices=["query", "analyze", "report", "compare"],
+        default="analyze",
+        help="Research action (default: analyze).",
+    )
+    parser.add_argument(
+        "--query",
+        help="Natural language query for research.",
     )
 
     return parser.parse_args(argv)
@@ -1856,6 +1938,258 @@ def _run_custom_factors_command(args: argparse.Namespace) -> None:
             print("No custom factors to compute")
 
 
+def _run_backtest_command(args: argparse.Namespace) -> None:
+    """Run backtesting command."""
+    from .walkforward import WalkForwardConfig, WalkForwardOptimizer, ParameterSpace
+    from .walkforward import StrategyEvaluator, create_momentum_strategy
+
+    print("\nBacktesting Configuration")
+    print("=" * 60)
+    print(f"Mode: {args.backtest_mode}")
+    print(f"Training window: {args.train_window} days")
+    print(f"Test window: {args.test_window} days")
+    print()
+
+    config = WalkForwardConfig(
+        training_window_days=args.train_window,
+        test_window_days=args.test_window,
+    )
+
+    print("Walk-Forward Configuration:")
+    print(f"  Training: {config.training_window_days} days")
+    print(f"  Validation: {config.validation_window_days} days")
+    print(f"  Test: {config.test_window_days} days")
+    print(f"  Step: {config.step_days} days")
+    print()
+    print("Note: Full backtesting requires price history data.")
+    print("Use with programmatic API for complete analysis.")
+
+
+def _run_monte_carlo_command(args: argparse.Namespace) -> None:
+    """Run Monte Carlo simulation command."""
+    from .monte_carlo import MonteCarloConfig, MonteCarloSimulator
+
+    print("\nMonte Carlo Simulation")
+    print("=" * 60)
+    print(f"Simulations: {args.n_simulations:,}")
+    print(f"Periods: {args.simulation_periods} days")
+    print()
+
+    config = MonteCarloConfig(
+        n_simulations=args.n_simulations,
+        n_periods=args.simulation_periods,
+    )
+
+    print("Configuration:")
+    print(f"  Return model: {config.return_model.value}")
+    print(f"  Confidence levels: {config.confidence_levels}")
+    print()
+    print("Note: Full simulation requires historical return data.")
+    print("Use with programmatic API for complete analysis.")
+
+
+def _run_optimize_command(args: argparse.Namespace) -> None:
+    """Run portfolio optimization command."""
+    from .portfolio_optimizer import OptimizationObjective
+
+    tickers = []
+    if args.ticker:
+        tickers = [args.ticker.upper()]
+    elif args.tickers:
+        tickers = [t.strip().upper() for t in args.tickers.split(",") if t.strip()]
+
+    if not tickers:
+        raise SystemExit("Error: Must provide --ticker or --tickers for optimization")
+
+    print("\nPortfolio Optimization")
+    print("=" * 60)
+    print(f"Tickers: {', '.join(tickers)}")
+    print(f"Method: {args.opt_method}")
+    print(f"Objective: {args.opt_objective}")
+    print(f"Lookback: {args.lookback_days} days")
+    print()
+
+    try:
+        import yfinance as yf
+        from .portfolio_optimizer import optimize_portfolio
+
+        print("Fetching price data...")
+        prices = yf.download(tickers, period=f"{args.lookback_days}d", progress=False)
+
+        if prices.empty:
+            raise SystemExit("Error: Could not fetch price data")
+
+        # Get adjusted close prices
+        if 'Adj Close' in prices.columns:
+            prices_df = prices['Adj Close']
+        else:
+            prices_df = prices
+
+        returns = prices_df.pct_change().dropna()
+
+        objective_map = {
+            "max_sharpe": OptimizationObjective.MAX_SHARPE,
+            "min_variance": OptimizationObjective.MIN_VARIANCE,
+            "risk_parity": OptimizationObjective.RISK_PARITY,
+            "max_return": OptimizationObjective.MAX_RETURN,
+        }
+
+        result = optimize_portfolio(
+            returns,
+            method=args.opt_method,
+            objective=objective_map.get(args.opt_objective, OptimizationObjective.MAX_SHARPE),
+        )
+
+        print("\nOptimization Results:")
+        print("-" * 40)
+        print(f"Expected Return: {result.expected_return:.1%}")
+        print(f"Expected Volatility: {result.expected_volatility:.1%}")
+        print(f"Sharpe Ratio: {result.sharpe_ratio:.2f}")
+        print(f"Effective N: {result.effective_n:.1f}")
+        print()
+
+        print("Optimal Weights:")
+        for ticker, weight in sorted(zip(result.tickers, result.weights), key=lambda x: -x[1]):
+            if weight >= 0.01:
+                print(f"  {ticker}: {weight:.1%}")
+
+    except Exception as e:
+        print(f"Optimization failed: {e}")
+
+
+def _run_rebalance_command(args: argparse.Namespace) -> None:
+    """Run rebalancing command."""
+    from .rebalancer import RebalanceConfig, RebalanceStrategy
+
+    print("\nRebalancing Configuration")
+    print("=" * 60)
+
+    config = RebalanceConfig()
+    print(f"Strategy: {config.strategy.value}")
+    print(f"Absolute threshold: {config.absolute_threshold:.1%}")
+    print(f"Relative threshold: {config.relative_threshold:.1%}")
+    print(f"Max turnover: {config.max_turnover:.1%}")
+    print(f"Transaction cost: {config.transaction_cost_bps:.0f} bps")
+    print()
+    print("Note: Full rebalancing requires portfolio positions.")
+    print("Use with programmatic API for trade generation.")
+
+
+def _run_api_command(args: argparse.Namespace) -> None:
+    """Run API server command."""
+    from .api import run_server
+
+    print("\nStarting Finviz Scraper API Server")
+    print("=" * 60)
+    print(f"Host: {args.api_host}")
+    print(f"Port: {args.api_port}")
+    print(f"Data directory: {args.out}")
+    print()
+    print("API Documentation: http://{}:{}/docs".format(args.api_host, args.api_port))
+    print()
+
+    run_server(
+        host=args.api_host,
+        port=args.api_port,
+        data_dir=args.out,
+    )
+
+
+def _run_research_command(args: argparse.Namespace) -> None:
+    """Run LLM research assistant command."""
+    from .llm_assistant import ResearchAssistant
+
+    action = args.research_action
+    assistant = ResearchAssistant(data_dir=args.out)
+
+    if action == "query":
+        if not args.query:
+            raise SystemExit("Error: --query required for query action")
+
+        print("\nResearch Query")
+        print("=" * 60)
+        print(f"Query: {args.query}")
+        print()
+
+        result = assistant.query(args.query)
+        print("Response:")
+        print(result.response)
+
+    elif action == "analyze":
+        if not args.ticker:
+            raise SystemExit("Error: --ticker required for analyze action")
+
+        print(f"\nAnalyzing {args.ticker.upper()}")
+        print("=" * 60)
+
+        analysis = assistant.analyze_ticker(args.ticker)
+
+        if "error" in analysis:
+            print(f"Error: {analysis['error']}")
+            return
+
+        print(f"Company: {analysis.get('company', 'N/A')}")
+        print(f"Sector: {analysis.get('sector', 'N/A')}")
+        print()
+
+        if analysis.get('scores'):
+            print("Scores:")
+            for k, v in analysis['scores'].items():
+                print(f"  {k}: {v:.1f}")
+
+        if analysis.get('valuation'):
+            print("\nValuation:")
+            for k, v in analysis['valuation'].items():
+                print(f"  {k}: {v:.2f}")
+
+    elif action == "report":
+        if not args.ticker:
+            raise SystemExit("Error: --ticker required for report action")
+
+        print(f"\nGenerating report for {args.ticker.upper()}...")
+        report = assistant.generate_report(args.ticker)
+        print(report.to_markdown())
+
+    elif action == "compare":
+        if not args.tickers:
+            raise SystemExit("Error: --tickers required for compare action")
+
+        tickers = [t.strip().upper() for t in args.tickers.split(",")]
+        print(f"\nComparing: {', '.join(tickers)}")
+        print("=" * 60)
+
+        result = assistant.compare_stocks(tickers)
+        print(result)
+
+
+def _run_scheduler_command(args: argparse.Namespace) -> None:
+    """Run scheduler command."""
+    from .scheduler import export_airflow_dag, export_prefect_flow
+
+    print("\nTask Scheduler")
+    print("=" * 60)
+    print()
+    print("Available scheduling options:")
+    print()
+    print("1. Export Airflow DAG:")
+    print("   finviz-weekly scheduler --export-airflow")
+    print()
+    print("2. Export Prefect Flow:")
+    print("   finviz-weekly scheduler --export-prefect")
+    print()
+    print("For production use, deploy the exported DAGs/flows to your")
+    print("Airflow or Prefect server.")
+    print()
+
+    # Export templates
+    export_airflow_dag("dags/finviz_dag.py")
+    export_prefect_flow("flows/finviz_flow.py")
+
+    print("Templates exported to:")
+    print("  - dags/finviz_dag.py (Airflow)")
+    print("  - flows/finviz_flow.py (Prefect)")
+
+
 def main(argv: List[str] | None = None) -> None:
     args = parse_args(argv)
     logging.basicConfig(level=getattr(logging, args.log_level.upper(), logging.INFO))
@@ -1997,6 +2331,34 @@ def main(argv: List[str] | None = None) -> None:
 
     if args.command == "dashboard":
         _run_dashboard_command(args)
+        return
+
+    if args.command == "backtest":
+        _run_backtest_command(args)
+        return
+
+    if args.command == "monte-carlo":
+        _run_monte_carlo_command(args)
+        return
+
+    if args.command == "optimize":
+        _run_optimize_command(args)
+        return
+
+    if args.command == "rebalance":
+        _run_rebalance_command(args)
+        return
+
+    if args.command == "api":
+        _run_api_command(args)
+        return
+
+    if args.command == "research":
+        _run_research_command(args)
+        return
+
+    if args.command == "scheduler":
+        _run_scheduler_command(args)
         return
 
     # run
